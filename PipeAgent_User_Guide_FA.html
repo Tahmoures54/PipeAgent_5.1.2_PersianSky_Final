@@ -1,0 +1,1023 @@
+<!doctype html>
+<html lang="fa" dir="rtl" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PipeAgent — راهنمای کاربر / User Guide</title>
+<meta name="description" content="PipeAgent Piping Execution Operating System — bilingual user guide and field workflow reference.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23087f8c'/><text x='50' y='70' font-size='58' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'>P</text></svg>">
+<style>
+/* ============================================================
+   1. DESIGN TOKENS  (light + dark)
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box}
+
+:root{
+  --teal:#087f8c; --cyan:#13a7b5; --ink:#173b45; --muted:#64818a;
+  --bg:#f4fbfc; --card:#fff; --line:#cbe8eb;
+  --soft:#eaf8f9; --soft2:#d8f5f6; --code:#edf7f8;
+  --shadow:0 4px 14px rgba(10,100,112,.10);
+  --radius:14px; --maxw:1180px; --navh:56px;
+}
+
+html[data-theme="dark"]{
+  --teal:#57d3de; --cyan:#2fbccb; --ink:#e7f6f8; --muted:#93b3ba;
+  --bg:#0a1a1e; --card:#112a30; --line:#1e454e;
+  --soft:#123037; --soft2:#16414a; --code:#0f2a31;
+  --shadow:0 4px 18px rgba(0,0,0,.40);
+}
+
+/* ============================================================
+   2. BASE
+   ============================================================ */
+html{scroll-behavior:smooth;scroll-padding-top:90px}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:Tahoma,"Segoe UI",Arial,sans-serif;
+  line-height:1.9;font-size:15px;
+  transition:background .25s ease,color .25s ease;
+  -webkit-text-size-adjust:100%;
+}
+html[lang="en"] body{
+  font-family:"Segoe UI",system-ui,Arial,Tahoma,sans-serif;
+  line-height:1.7;
+}
+b,strong{color:var(--teal)}
+html[data-theme="dark"] b,html[data-theme="dark"] strong{color:var(--teal)}
+a{color:var(--teal)}
+:focus-visible{outline:3px solid var(--cyan);outline-offset:2px;border-radius:6px}
+
+.skip-link{
+  position:absolute;inset-inline-start:-9999px;top:0;z-index:200;
+  background:var(--card);color:var(--teal);padding:10px 16px;
+  border-radius:0 0 10px 10px;font-weight:700;text-decoration:none;
+}
+.skip-link:focus{inset-inline-start:12px}
+
+/* ============================================================
+   3. READING PROGRESS BAR
+   ============================================================ */
+#progress{
+  position:fixed;top:0;inset-inline-start:0;height:3px;width:0;
+  background:linear-gradient(90deg,var(--teal),var(--cyan));
+  z-index:120;transition:width .08s linear;
+}
+
+/* ============================================================
+   4. HERO HEADER
+   ============================================================ */
+.hero{
+  background:linear-gradient(110deg,#087f8c,#13a7b5,#55c7d0);
+  color:#fff;padding:32px 7% 24px;
+  box-shadow:0 3px 18px rgba(8,127,140,.28);
+  position:relative;overflow:hidden;
+}
+.hero::after{
+  content:"";position:absolute;inset-inline-end:-80px;top:-80px;
+  width:260px;height:260px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.22),transparent 70%);
+  pointer-events:none;
+}
+.hero-inner{
+  max-width:var(--maxw);margin:0 auto;position:relative;z-index:1;
+  display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;
+}
+.brand{display:flex;align-items:center;gap:14px}
+.logo{
+  width:54px;height:54px;border-radius:15px;flex:0 0 auto;
+  background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.38);
+  display:grid;place-items:center;font-weight:800;font-size:19px;letter-spacing:.5px;
+}
+.hero h1{margin:0;font-size:clamp(25px,4vw,34px);line-height:1.2;letter-spacing:.3px}
+.hero .tagline{margin:4px 0 0;color:#eaffff;font-size:13.5px;opacity:.95}
+
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+.btn{
+  background:rgba(255,255,255,.16);color:#fff;
+  border:1px solid rgba(255,255,255,.42);border-radius:10px;
+  padding:8px 15px;font:inherit;font-size:13px;font-weight:700;
+  cursor:pointer;transition:background .2s,transform .15s;white-space:nowrap;
+}
+.btn:hover{background:rgba(255,255,255,.32);transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+
+/* ---- Search ---- */
+.searchbar{max-width:var(--maxw);margin:20px auto 0;position:relative;z-index:1}
+.searchbar .ico{
+  position:absolute;inset-inline-start:15px;top:50%;transform:translateY(-50%);
+  opacity:.5;pointer-events:none;font-size:15px;
+}
+.searchbar input{
+  width:100%;padding:12px 16px;padding-inline-start:42px;padding-inline-end:42px;
+  border-radius:12px;border:1px solid rgba(255,255,255,.5);
+  background:rgba(255,255,255,.96);color:#173b45;
+  font:inherit;font-size:14px;outline:none;
+  box-shadow:0 4px 16px rgba(0,0,0,.14);transition:box-shadow .2s,border-color .2s;
+}
+.searchbar input::placeholder{color:#7d979e}
+.searchbar input:focus{border-color:#fff;box-shadow:0 0 0 4px rgba(255,255,255,.28)}
+.searchbar kbd{
+  position:absolute;inset-inline-end:12px;top:50%;transform:translateY(-50%);
+  font-size:11px;background:rgba(8,127,140,.1);color:#087f8c;
+  border:1px solid rgba(8,127,140,.22);border-radius:6px;padding:2px 7px;
+  font-family:inherit;pointer-events:none;
+}
+
+/* ============================================================
+   5. STICKY NAV
+   ============================================================ */
+.nav{
+  position:sticky;top:0;z-index:60;
+  background:var(--card);border-bottom:1px solid var(--line);
+  box-shadow:0 2px 12px rgba(10,100,112,.07);
+  backdrop-filter:saturate(150%) blur(6px);
+}
+.nav .inner{
+  max-width:var(--maxw);margin:0 auto;padding:8px 20px;
+  display:flex;gap:6px;overflow-x:auto;scrollbar-width:thin;
+}
+.nav .inner::-webkit-scrollbar{height:5px}
+.nav .inner::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+.nav a{
+  color:var(--muted);text-decoration:none;font-weight:700;font-size:13.5px;
+  padding:8px 13px;border-radius:9px;white-space:nowrap;
+  transition:background .18s,color .18s;
+}
+.nav a:hover{background:var(--soft);color:var(--teal)}
+.nav a.active{background:var(--soft2);color:var(--teal)}
+
+/* ============================================================
+   6. LAYOUT + CARDS
+   ============================================================ */
+.wrap{max-width:var(--maxw);margin:26px auto 0;padding:0 20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:16px}
+
+.card{
+  background:var(--card);border:1px solid var(--line);
+  border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);
+  margin-bottom:18px;scroll-margin-top:88px;
+  animation:rise .35s ease both;
+}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){
+  .card{animation:none}
+  html{scroll-behavior:auto}
+}
+
+.card > h2{
+  margin:0 0 16px;color:var(--teal);font-size:20px;
+  display:flex;align-items:center;gap:10px;
+  padding-bottom:12px;border-bottom:1px dashed var(--line);
+}
+.card > h2 .ico{font-size:19px;line-height:1}
+
+/* ---- mini panels inside a card ---- */
+.mini{
+  background:var(--soft);border:1px solid var(--line);
+  border-radius:12px;padding:16px 18px;
+}
+.mini h3{margin:0 0 8px;font-size:15px;color:var(--teal)}
+.mini p{margin:0 0 6px}
+.mini p:last-child{margin-bottom:0}
+.mini ul,.mini ol{margin:6px 0 0;padding-inline-start:20px}
+.mini li{margin:3px 0}
+
+/* ============================================================
+   7. STEPS
+   ============================================================ */
+.step{display:flex;gap:12px;margin:12px 0;align-items:flex-start}
+.num{
+  min-width:30px;height:30px;border-radius:50%;
+  background:var(--soft2);color:var(--teal);
+  font-weight:800;font-size:14px;display:grid;place-items:center;
+  flex:0 0 auto;margin-top:4px;
+}
+
+/* ============================================================
+   8. TIP / CALLOUT
+   ============================================================ */
+.tip{
+  background:var(--soft);padding:13px 16px;border-radius:10px;
+  border-inline-start:4px solid var(--cyan);margin-top:14px;font-size:14.5px;
+}
+
+/* ============================================================
+   9. TABLES
+   ============================================================ */
+.table-scroll{overflow-x:auto;border-radius:12px;border:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;background:var(--card);min-width:520px}
+th,td{text-align:start;padding:11px 13px;border-bottom:1px solid var(--line);font-size:14.5px}
+th{background:var(--soft);color:var(--teal);font-weight:800;white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--soft)}
+
+/* ============================================================
+   10. CHECKLIST
+   ============================================================ */
+.check-item{
+  display:flex;gap:11px;align-items:flex-start;
+  padding:9px 12px;border-radius:10px;transition:background .18s;
+}
+.check-item:hover{background:var(--soft)}
+.check-item input{
+  width:19px;height:19px;accent-color:var(--teal);
+  margin-top:6px;flex:0 0 auto;cursor:pointer;
+}
+.check-item label{cursor:pointer;flex:1}
+.check-item input:checked + label{opacity:.5;text-decoration:line-through}
+
+/* ============================================================
+   11. FAQ  (<details>)
+   ============================================================ */
+details.faq{
+  border:1px solid var(--line);border-radius:11px;
+  padding:4px 16px;margin:9px 0;background:var(--card);
+  transition:background .18s;
+}
+details.faq[open]{background:var(--soft)}
+details.faq summary{
+  cursor:pointer;font-weight:700;color:var(--teal);
+  padding:11px 0;list-style:none;display:flex;justify-content:space-between;gap:12px;
+}
+details.faq summary::-webkit-details-marker{display:none}
+details.faq summary::after{content:"＋";font-weight:400;opacity:.7}
+details.faq[open] summary::after{content:"－"}
+details.faq p{margin:0 0 14px;font-size:14.5px}
+
+/* ============================================================
+   12. GLOSSARY
+   ============================================================ */
+.glossary{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.glossary .term{
+  background:var(--soft);border:1px solid var(--line);
+  border-radius:10px;padding:11px 14px;
+}
+.glossary .term b{display:block;color:var(--teal);font-size:13.5px}
+.glossary .term span{font-size:13.5px;color:var(--muted)}
+
+/* ============================================================
+   13. PROMO + FOOTER
+   ============================================================ */
+.promo{
+  background:linear-gradient(120deg,var(--card),var(--soft));
+  border:1px solid var(--line);
+}
+.promo .slogan{
+  margin:12px 0 0;font-weight:800;color:var(--teal);
+  font-size:16px;letter-spacing:.2px;
+}
+footer{
+  text-align:center;color:var(--muted);
+  padding:32px 20px 44px;font-size:13.5px;
+  border-top:1px solid var(--line);margin-top:20px;
+}
+
+/* ============================================================
+   14. BACK TO TOP
+   ============================================================ */
+#toTop{
+  position:fixed;inset-inline-end:22px;bottom:22px;z-index:90;
+  width:44px;height:44px;border-radius:50%;
+  background:var(--teal);color:#fff;border:none;
+  font-size:19px;cursor:pointer;box-shadow:0 6px 18px rgba(8,127,140,.4);
+  opacity:0;visibility:hidden;transform:translateY(12px);
+  transition:opacity .25s,transform .25s,visibility .25s;
+}
+#toTop.show{opacity:1;visibility:visible;transform:none}
+#toTop:hover{background:var(--cyan)}
+
+/* ============================================================
+   15. EMPTY STATE
+   ============================================================ */
+#noResults{
+  display:none;text-align:center;padding:34px 20px;
+  background:var(--card);border:1px dashed var(--line);
+  border-radius:var(--radius);color:var(--muted);font-weight:700;
+}
+#noResults.show{display:block}
+
+/* ============================================================
+   16. PRINT
+   ============================================================ */
+@media print{
+  .nav,.tools,.searchbar,#toTop,#progress,.skip-link{display:none !important}
+  body{background:#fff;color:#000;font-size:11pt;line-height:1.5}
+  .hero{background:#087f8c !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .card{box-shadow:none;border:1px solid #ccc;break-inside:avoid;page-break-inside:avoid;margin-bottom:10px}
+  details.faq{border:1px solid #ccc}
+  details.faq[open] p{display:block}
+  a[href^="#"]::after{content:""}
+}
+
+/* ============================================================
+   17. RESPONSIVE
+   ============================================================ */
+@media (max-width:640px){
+  .hero{padding:24px 5% 20px}
+  .logo{width:44px;height:44px;font-size:16px;border-radius:12px}
+  .wrap{padding:0 14px}
+  .card{padding:18px;border-radius:12px}
+  .card > h2{font-size:18px}
+  .btn{padding:7px 12px;font-size:12.5px}
+  .searchbar kbd{display:none}
+  table{min-width:440px}
+}
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#content">Skip to content / پرش به محتوا</a>
+<div id="progress" role="presentation"></div>
+
+<!-- ==================== HERO ==================== -->
+<header class="hero">
+  <div class="hero-inner">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">PA</div>
+      <div>
+        <h1>PipeAgent</h1>
+        <p class="tagline" id="tagline"></p>
+      </div>
+    </div>
+    <div class="tools">
+      <button class="btn" id="langBtn" type="button" aria-label="Switch language"></button>
+      <button class="btn" id="themeBtn" type="button" aria-label="Toggle theme"></button>
+      <button class="btn" id="printBtn" type="button" aria-label="Print guide">🖨</button>
+    </div>
+  </div>
+
+  <div class="searchbar">
+    <span class="ico" aria-hidden="true">🔍</span>
+    <input id="search" type="search" autocomplete="off" spellcheck="false" aria-controls="content">
+    <kbd>Ctrl K</kbd>
+  </div>
+</header>
+
+<!-- ==================== NAV ==================== -->
+<nav class="nav" aria-label="Guide sections">
+  <div class="inner" id="navInner"></div>
+</nav>
+
+<!-- ==================== CONTENT ==================== -->
+<main class="wrap" id="content"></main>
+
+<div class="wrap"><p id="noResults"></p></div>
+
+<footer id="footer"></footer>
+
+<button id="toTop" type="button" aria-label="Back to top">↑</button>
+
+<script>
+/* ================================================================
+   PipeAgent User Guide — bilingual engine
+   ----------------------------------------------------------------
+   Architecture:
+     1. UI          → chrome strings (buttons, placeholders, footer)
+     2. SECTIONS[]  → single source of truth: id, icon, nav label,
+                      and body HTML per language
+     3. render()    → rebuilds nav + content for the active language
+     4. bind()      → re-attaches observers / restores user state
+   Adding a new section = push one object into SECTIONS.
+   ================================================================ */
+
+/* ---------- 1. UI CHROME STRINGS ---------- */
+const UI = {
+  fa: {
+    dir:'rtl', lang:'fa',
+    title:'PipeAgent — راهنمای کاربر',
+    tagline:'سیستم عامل اجرای پایپینگ — راهنمای کاربر و مرجع گردش کار سایت',
+    switchLabel:'English',
+    themeToDark:'🌙 تاریک',
+    themeToLight:'☀️ روشن',
+    searchPlaceholder:'جستجو در راهنما…',
+    searchLabel:'جستجو در راهنما',
+    noResults:'موردی با این عبارت یافت نشد. عبارت دیگری را امتحان کنید.',
+    toTop:'بازگشت به بالا',
+    print:'چاپ راهنما',
+    footer:'PipeAgent · Piping Execution Operating System · طراحی‌شده برای اجرای عملی پروژه‌های EPC'
+  },
+  en: {
+    dir:'ltr', lang:'en',
+    title:'PipeAgent — User Guide',
+    tagline:'Piping Execution Operating System — User Guide & Field Workflow Reference',
+    switchLabel:'فارسی',
+    themeToDark:'🌙 Dark',
+    themeToLight:'☀️ Light',
+    searchPlaceholder:'Search the guide…',
+    searchLabel:'Search the guide',
+    noResults:'No matching section found. Try a different keyword.',
+    toTop:'Back to top',
+    print:'Print guide',
+    footer:'PipeAgent · Piping Execution Operating System · Built for practical EPC site execution'
+  }
+};
+
+/* ---------- 2. GUIDE SECTIONS ---------- */
+const SECTIONS = [
+
+/* ============ QUICK START ============ */
+{
+  id:'start', icon:'🚀',
+  nav:{fa:'شروع سریع', en:'Quick Start'},
+  fa:`
+    <div class="step"><span class="num">۱</span><div>پس از ورود، از <b>PipeAgent → Dashboard</b> شروع کنید. داشبورد مرکز کنترل وضعیت پروژه و سیگنال‌های اجرایی است.</div></div>
+    <div class="step"><span class="num">۲</span><div>اطلاعات پروژه، Line List، مدارک و رجیسترهای اصلی را قبل از ورود حجم زیاد اطلاعات آماده کنید.</div></div>
+    <div class="step"><span class="num">۳</span><div>برای ثبت سریع از <b>Quick Entry</b> و برای ورود گروهی از <b>Data Exchange</b> استفاده کنید.</div></div>
+    <div class="step"><span class="num">۴</span><div>فعالیت‌ها را در مسیر Fit-up → Weld → QC → NDT → Repair → Acceptance و سپس Testing، Completion و Turnover دنبال کنید.</div></div>
+    <div class="tip"><b>قاعده سایت:</b> مدرک و نتیجه فعالیت را در زمان انجام کار ثبت کنید؛ ثبت دقیق و به‌موقع از ورود دیرهنگام حجم زیادی اطلاعات ارزشمندتر است.</div>
+  `,
+  en:`
+    <div class="step"><span class="num">1</span><div>Sign in and start from <b>PipeAgent → Dashboard</b>. The dashboard is the command center for project status and execution signals.</div></div>
+    <div class="step"><span class="num">2</span><div>Set up the project, line list, documents and core execution registers before entering large volumes of field data.</div></div>
+    <div class="step"><span class="num">3</span><div>Use <b>Quick Entry</b> for fast individual updates or <b>Data Exchange</b> for controlled bulk loading.</div></div>
+    <div class="step"><span class="num">4</span><div>Move work through Fit-up → Weld → QC → NDT → Repair → Acceptance and then into testing, completion and turnover.</div></div>
+    <div class="tip"><b>Field rule:</b> enter evidence at the point of work. A short, accurate record is more useful than a late bulk update.</div>
+  `
+},
+
+/* ============ EXECUTION LIFECYCLE ============ */
+{
+  id:'workflow', icon:'🔁',
+  nav:{fa:'گردش کار', en:'Execution Flow'},
+  fa:`
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>مرحله</th><th>بخش پیشنهادی PipeAgent</th><th>هدف اجرایی</th></tr></thead>
+        <tbody>
+          <tr><td>مهندسی</td><td>Project Setup، Documents، Line List</td><td>ایجاد زمینه کنترل‌شده برای طراحی و خطوط.</td></tr>
+          <tr><td>متریال</td><td>Procurement / Material Tracking</td><td>کنترل دریافت، Heat/Lot و موجودی قابل مصرف.</td></tr>
+          <tr><td>ساخت</td><td>Spooling، Joints، Welder Management</td><td>کنترل Spool و اجرای جوش.</td></tr>
+          <tr><td>نصب سایت</td><td>Field Erection، Supports، Valves</td><td>کنترل نصب و آمادگی کار.</td></tr>
+          <tr><td>کیفیت</td><td>QA/QC، NDT، Punch</td><td>ثبت بازرسی، عیوب، NCR و رفع Punch.</td></tr>
+          <tr><td>تست</td><td>Test Packages، Pre-Commissioning، Finishing</td><td>اثبات آمادگی سیستم.</td></tr>
+          <tr><td>تکمیل</td><td>Handover، Digital Turnover، As-Built</td><td>ساخت پرونده تحویل قابل ردیابی.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tip">هر مرحله فقط وقتی «تمام» است که <b>مدرک</b> آن ثبت شده باشد؛ نه وقتی که کار فیزیکی انجام شده باشد.</div>
+  `,
+  en:`
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Stage</th><th>Typical PipeAgent Area</th><th>Execution Objective</th></tr></thead>
+        <tbody>
+          <tr><td>Engineering</td><td>Project Setup, Documents, Line List</td><td>Establish controlled design and line context.</td></tr>
+          <tr><td>Material</td><td>Procurement / Material Tracking</td><td>Confirm receipt, heat/lot traceability and availability.</td></tr>
+          <tr><td>Fabrication</td><td>Spooling, Joints, Welder Management</td><td>Control spool and weld execution.</td></tr>
+          <tr><td>Site Installation</td><td>Field Erection, Supports, Valves</td><td>Track installation and field readiness.</td></tr>
+          <tr><td>Quality</td><td>QA/QC, NDT, Punch</td><td>Capture inspection results and close defects.</td></tr>
+          <tr><td>Testing</td><td>Test Packages, Pre-Commissioning, Finishing</td><td>Prove system readiness.</td></tr>
+          <tr><td>Completion</td><td>Handover, Digital Turnover, As-Built</td><td>Build a traceable turnover package.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tip">A stage is only <b>complete</b> when its evidence is recorded — not when the physical work is finished.</div>
+  `
+},
+
+/* ============ MENUS ============ */
+{
+  id:'menus', icon:'🧭',
+  nav:{fa:'منوها', en:'Menus'},
+  fa:`
+    <div class="grid">
+      <div class="mini">
+        <h3>منوی PipeAgent</h3>
+        <p>منوی اصلی محصول است و Dashboard را در اولین گزینه قرار می‌دهد؛ سپس ماژول‌های اجرای پروژه بر اساس حوزه و چرخه عمر قرار گرفته‌اند.</p>
+      </div>
+      <div class="mini">
+        <h3>منوی File</h3>
+        <ul>
+          <li>باز کردن پوشه پروژه</li>
+          <li>ورود اطلاعات از Excel</li>
+          <li>خروجی کامل پروژه</li>
+          <li>پشتیبان‌گیری از Database</li>
+          <li>باز کردن پوشه Backup</li>
+          <li>چاپ نمای فعلی</li>
+          <li>Refresh، Logout و Exit</li>
+        </ul>
+      </div>
+      <div class="mini">
+        <h3>منوی Help</h3>
+        <p>دسترسی به همین راهنما، راهنمای انگلیسی، About، اطلاعات License، میانبرها و پشتیبانی WhatsApp.</p>
+      </div>
+    </div>
+  `,
+  en:`
+    <div class="grid">
+      <div class="mini">
+        <h3>PipeAgent Menu</h3>
+        <p>The primary navigation menu. Dashboard is first, followed by the complete execution modules grouped by discipline and lifecycle.</p>
+      </div>
+      <div class="mini">
+        <h3>File Menu</h3>
+        <ul>
+          <li>Open Project Folder</li>
+          <li>Import Excel / Data</li>
+          <li>Export Full Project Pack</li>
+          <li>Backup Database</li>
+          <li>Open Backup Folder</li>
+          <li>Print Current View</li>
+          <li>Refresh, Logout, Exit</li>
+        </ul>
+      </div>
+      <div class="mini">
+        <h3>Help Menu</h3>
+        <p>Open this guide, the Persian guide, About, License Information, Keyboard Shortcuts and WhatsApp Support.</p>
+      </div>
+    </div>
+  `
+},
+
+/* ============ DATA EXCHANGE ============ */
+{
+  id:'data', icon:'📊',
+  nav:{fa:'اکسل و داده', en:'Data Exchange'},
+  fa:`
+    <p>برای عملیات گروهی و کنترل‌شده از <b>Data Exchange Center</b> استفاده کنید.</p>
+    <ol>
+      <li>نوع داده را انتخاب کنید.</li>
+      <li>فایل Excel را انتخاب و <b>Analyze</b> کنید.</li>
+      <li>خطاها و موارد تکراری را در Preview بررسی کنید.</li>
+      <li>فقط رکوردهای معتبر را Import کنید.</li>
+      <li>برای شروع کار از Template استفاده کنید.</li>
+      <li>برای خروجی کامل از Full Project Excel Pack استفاده کنید.</li>
+    </ol>
+    <div class="tip">مرحله Analyze ماهیت بررسی دارد و تا قبل از زدن <b>Import Valid Records</b> تغییر پایدار در داده‌ها انجام نمی‌شود.</div>
+  `,
+  en:`
+    <p>Use the <b>Data Exchange Center</b> for controlled bulk data operations.</p>
+    <ol>
+      <li>Select the target data type.</li>
+      <li>Select an Excel workbook and run <b>Analyze</b>.</li>
+      <li>Review errors and duplicates in Preview.</li>
+      <li>Import only valid records.</li>
+      <li>Use templates before starting a new bulk import.</li>
+      <li>Use the Full Project Excel Pack when a complete export is required.</li>
+    </ol>
+    <div class="tip">Analysis is read-only — no persistent change is written until <b>Import Valid Records</b> is pressed.</div>
+  `
+},
+
+/* ============ QUALITY ============ */
+{
+  id:'quality', icon:'✅',
+  nav:{fa:'کنترل کیفیت', en:'Quality'},
+  fa:`
+    <div class="grid">
+      <div class="mini"><h3>Work Front</h3><p>آمادگی، تیم، ماشین‌آلات، پیشرفت و موانع را کنترل کنید تا نیروی اجرایی در کار مولد بماند.</p></div>
+      <div class="mini"><h3>QA/QC و NDT</h3><p>وضعیت بازرسی، گزارش‌ها، یافته‌ها، NCR و Punch را با شناسه‌های قابل ردیابی ثبت کنید.</p></div>
+      <div class="mini"><h3>Site Execution Control</h3><p>Loop Check، مجوزها، تجهیزات، مشکلات سایت و آمادگی Commissioning را هماهنگ کنید.</p></div>
+      <div class="mini"><h3>Execution Intelligence</h3><p>از سیگنال‌های پیش‌بینی و دیدن Constraintها برای شناسایی اثرات احتمالی بر کارهای بعدی استفاده کنید.</p></div>
+    </div>
+  `,
+  en:`
+    <div class="grid">
+      <div class="mini"><h3>Work Front</h3><p>Use readiness, crew, equipment, progress and blocker information to keep productive work moving.</p></div>
+      <div class="mini"><h3>QA/QC &amp; NDT</h3><p>Record inspection status, reports, findings, NCRs and punch clearance with traceable identifiers.</p></div>
+      <div class="mini"><h3>Site Execution Control</h3><p>Coordinate loop checks, permits, equipment, site issues and commissioning readiness.</p></div>
+      <div class="mini"><h3>Execution Intelligence</h3><p>Use predictive signals and constraint visibility to identify what may affect future work.</p></div>
+    </div>
+  `
+},
+
+/* ============ TURNOVER ============ */
+{
+  id:'turnover', icon:'📦',
+  nav:{fa:'تحویل', en:'Turnover'},
+  fa:`
+    <p>پرونده تحویل را به پایان پروژه موکول نکنید. Test Record، Punch، Quality Evidence، مدارک و As-Built را از همان زمان اجرای فعالیت به Line، Spool، System یا Package مرتبط کنید.</p>
+    <p><b>عادت پیشنهادی:</b> بعد از پایان هر فعالیت از خود بپرسید «تیم تحویل بعداً چه مدرکی لازم دارد؟» و همان لحظه آن را ثبت کنید.</p>
+    <div class="tip">پرونده Turnover محصول جانبی اجرای روزانه است، نه یک پروژه جداگانه در ماه آخر.</div>
+  `,
+  en:`
+    <p>Turnover should be assembled continuously rather than at the end of construction. Keep test records, punch status, quality evidence, documents and as-built information connected to the relevant line, spool, system or package.</p>
+    <p><b>Recommended habit:</b> when an activity is completed, ask “What evidence will the turnover team need later?” and capture it now.</p>
+    <div class="tip">A turnover package is a by-product of daily execution — not a separate project in the final month.</div>
+  `
+},
+
+/* ============ ROLES (NEW) ============ */
+{
+  id:'roles', icon:'👥',
+  nav:{fa:'نقش‌ها', en:'Roles'},
+  fa:`
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>نقش</th><th>مسئولیت اصلی</th><th>بخش‌های کلیدی</th></tr></thead>
+        <tbody>
+          <tr><td>بازرس QC</td><td>ثبت نتیجه بازرسی، NCR و رفع Punch</td><td>QA/QC، NDT، Punch</td></tr>
+          <tr><td>مهندس جوش</td><td>کنترل WPS/PQR، صلاحیت جوشکار و نقشه جوش</td><td>Welder Management، Joints</td></tr>
+          <tr><td>سرپرست سایت</td><td>پیشبرد Work Front و رفع موانع</td><td>Field Erection، Work Front</td></tr>
+          <tr><td>مهندس پایپینگ</td><td>صحت Line List، Spool و مدارک</td><td>Line List، Spooling، Documents</td></tr>
+          <tr><td>کنترل پروژه</td><td>پیشرفت، وزن، سیگنال‌های تأخیر</td><td>Dashboard، Execution Intelligence</td></tr>
+          <tr><td>کنترلر متریال</td><td>رسید، Heat/Lot و موجودی قابل مصرف</td><td>Procurement، Material Tracking</td></tr>
+          <tr><td>هماهنگ‌کننده تحویل</td><td>ساخت و اعتبارسنجی پرونده Turnover</td><td>Digital Turnover، As-Built</td></tr>
+          <tr><td>مدیر پروژه</td><td>تصمیم‌گیری و اولویت‌بندی</td><td>Dashboard، Reports</td></tr>
+        </tbody>
+      </table>
+    </div>
+  `,
+  en:`
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Role</th><th>Primary responsibility</th><th>Key PipeAgent areas</th></tr></thead>
+        <tbody>
+          <tr><td>QC Inspector</td><td>Record inspection results, NCRs and punch clearance</td><td>QA/QC, NDT, Punch</td></tr>
+          <tr><td>Welding Engineer</td><td>Control WPS/PQR, welder qualification and weld maps</td><td>Welder Management, Joints</td></tr>
+          <tr><td>Site Supervisor</td><td>Drive work fronts and remove blockers</td><td>Field Erection, Work Front</td></tr>
+          <tr><td>Piping Engineer</td><td>Data quality of line list, spools and documents</td><td>Line List, Spooling, Documents</td></tr>
+          <tr><td>Planning / Project Control</td><td>Progress, weights and delay signals</td><td>Dashboard, Execution Intelligence</td></tr>
+          <tr><td>Material Controller</td><td>Receipts, heat/lot traceability and availability</td><td>Procurement, Material Tracking</td></tr>
+          <tr><td>Turnover Coordinator</td><td>Assemble and validate the turnover package</td><td>Digital Turnover, As-Built</td></tr>
+          <tr><td>Project Manager</td><td>Decision making and prioritisation</td><td>Dashboard, Reports</td></tr>
+        </tbody>
+      </table>
+    </div>
+  `
+},
+
+/* ============ DAILY ROUTINE (NEW) ============ */
+{
+  id:'daily', icon:'🗓',
+  nav:{fa:'روال روزانه', en:'Daily Routine'},
+  fa:`
+    <p>این چک‌لیست کوتاه، ریتم کاری روزانه تیم اجرایی را در PipeAgent تثبیت می‌کند. وضعیت تیک‌ها در همین مرورگر ذخیره می‌شود.</p>
+    <div id="checklist">
+      <div class="check-item"><input type="checkbox" id="d1" data-key="d1"><label for="d1">صبح: مرور Dashboard و سیگنال‌های Constraint.</label></div>
+      <div class="check-item"><input type="checkbox" id="d2" data-key="d2"><label for="d2">انتشار Work Front روز و تأیید آمادگی تیم و ماشین‌آلات.</label></div>
+      <div class="check-item"><input type="checkbox" id="d3" data-key="d3"><label for="d3">ثبت نتایج Fit-up و Weld همان روز.</label></div>
+      <div class="check-item"><input type="checkbox" id="d4" data-key="d4"><label for="d4">به‌روزرسانی وضعیت QA/QC و ارسال درخواست NDT.</label></div>
+      <div class="check-item"><input type="checkbox" id="d5" data-key="d5"><label for="d5">ثبت Heat/Lot متریال مصرف‌شده در Joint مربوطه.</label></div>
+      <div class="check-item"><input type="checkbox" id="d6" data-key="d6"><label for="d6">بستن Punch‌های قابل رفع و ثبت مدرک آن.</label></div>
+      <div class="check-item"><input type="checkbox" id="d7" data-key="d7"><label for="d7">پایان روز: پشتیبان‌گیری و بررسی خطاهای ورود داده.</label></div>
+    </div>
+  `,
+  en:`
+    <p>This short checklist locks the daily execution rhythm into PipeAgent. Tick states are saved in this browser.</p>
+    <div id="checklist">
+      <div class="check-item"><input type="checkbox" id="e1" data-key="d1"><label for="e1">Morning: review the Dashboard and constraint signals.</label></div>
+      <div class="check-item"><input type="checkbox" id="e2" data-key="d2"><label for="e2">Issue the daily work front and confirm crew/equipment readiness.</label></div>
+      <div class="check-item"><input type="checkbox" id="e3" data-key="d3"><label for="e3">Record fit-up and weld results the same day.</label></div>
+      <div class="check-item"><input type="checkbox" id="e4" data-key="d4"><label for="e4">Update QA/QC status and raise NDT requests.</label></div>
+      <div class="check-item"><input type="checkbox" id="e5" data-key="d5"><label for="e5">Record heat/lot of material consumed against the joint.</label></div>
+      <div class="check-item"><input type="checkbox" id="e6" data-key="d6"><label for="e6">Close clearable punches and attach the evidence.</label></div>
+      <div class="check-item"><input type="checkbox" id="e7" data-key="d7"><label for="e7">End of day: run a backup and review data-entry errors.</label></div>
+    </div>
+  `
+},
+
+/* ============ SHORTCUTS (NEW) ============ */
+{
+  id:'shortcuts', icon:'⌨️',
+  nav:{fa:'میانبرها', en:'Shortcuts'},
+  fa:`
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>کلید</th><th>عملکرد</th></tr></thead>
+        <tbody>
+          <tr><td><code>Ctrl</code> + <code>K</code></td><td>فوکوس روی جستجوی راهنما</td></tr>
+          <tr><td><code>Ctrl</code> + <code>Shift</code> + <code>L</code></td><td>تغییر زبان فارسی / انگلیسی</td></tr>
+          <tr><td><code>Ctrl</code> + <code>Shift</code> + <code>D</code></td><td>تغییر پوسته روشن / تاریک</td></tr>
+          <tr><td><code>Esc</code></td><td>پاک کردن جستجو</td></tr>
+          <tr><td><code>Ctrl</code> + <code>P</code></td><td>چاپ راهنما</td></tr>
+          <tr><td><code>Home</code></td><td>بازگشت به بالای صفحه</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tip">میان‌بر <code>Ctrl</code> + <code>K</code> در تمام طول مطالعه راهنما فعال است.</div>
+  `,
+  en:`
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Key</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td><code>Ctrl</code> + <code>K</code></td><td>Focus the guide search box</td></tr>
+          <tr><td><code>Ctrl</code> + <code>Shift</code> + <code>L</code></td><td>Switch Persian / English</td></tr>
+          <tr><td><code>Ctrl</code> + <code>Shift</code> + <code>D</code></td><td>Toggle light / dark theme</td></tr>
+          <tr><td><code>Esc</code></td><td>Clear the search</td></tr>
+          <tr><td><code>Ctrl</code> + <code>P</code></td><td>Print the guide</td></tr>
+          <tr><td><code>Home</code></td><td>Scroll to the top</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tip"><code>Ctrl</code> + <code>K</code> works from anywhere in the guide.</div>
+  `
+},
+
+/* ============ GLOSSARY (NEW) ============ */
+{
+  id:'glossary', icon:'📖',
+  nav:{fa:'واژه‌نامه', en:'Glossary'},
+  fa:`
+    <div class="glossary">
+      <div class="term"><b>Line List</b><span>فهرست کنترل‌شده خطوط لوله پروژه.</span></div>
+      <div class="term"><b>Spool</b><span>قطعه پیش‌ساخته لوله که در کارگاه یا سایت مونتاژ می‌شود.</span></div>
+      <div class="term"><b>Joint</b><span>اتصال جوشی بین دو قطعه؛ واحد اصلی ردیابی کیفیت.</span></div>
+      <div class="term"><b>Fit-up</b><span>مرحله جاگذاری و تنظیم قطعات پیش از جوشکاری.</span></div>
+      <div class="term"><b>Heat / Lot</b><span>شماره ذوب و بسته متریال برای ردیابی منشأ.</span></div>
+      <div class="term"><b>NDT</b><span>آزمون‌های غیرمخرب برای اثبات کیفیت جوش.</span></div>
+      <div class="term"><b>NCR</b><span>گزارش عدم انطباق؛ انحراف نیازمند تصمیم و رفع.</span></div>
+      <div class="term"><b>Punch</b><span>نقص جزئی باقی‌مانده که باید پیش از تحویل رفع شود.</span></div>
+      <div class="term"><b>Test Package</b><span>بسته‌بندی سیستم برای تست فشار و آماده‌سازی.</span></div>
+      <div class="term"><b>Loop Check</b><span>راستی‌آزمایی مدار ابزار دقیق از سنسور تا سیستم کنترل.</span></div>
+      <div class="term"><b>Work Front</b><span>محدوده کاری آماده که نیروی اجرایی در آن مولد است.</span></div>
+      <div class="term"><b>Constraint</b><span>مانعی که مانع شروع یا پیشرفت کار می‌شود.</span></div>
+      <div class="term"><b>As-Built</b><span>مدارک نهایی منطبق بر وضعیت واقعی اجرا.</span></div>
+      <div class="term"><b>Turnover</b><span>فرآیند تحویل سیستم‌ها همراه با مدارک و شواهد.</span></div>
+    </div>
+  `,
+  en:`
+    <div class="glossary">
+      <div class="term"><b>Line List</b><span>Controlled register of all project piping lines.</span></div>
+      <div class="term"><b>Spool</b><span>A pre-fabricated pipe piece assembled in shop or field.</span></div>
+      <div class="term"><b>Joint</b><span>A welded connection; the primary quality traceability unit.</span></div>
+      <div class="term"><b>Fit-up</b><span>Aligning and setting components before welding.</span></div>
+      <div class="term"><b>Heat / Lot</b><span>Melt and batch number used for material traceability.</span></div>
+      <div class="term"><b>NDT</b><span>Non-destructive testing used to prove weld quality.</span></div>
+      <div class="term"><b>NCR</b><span>Non-conformance report; a deviation requiring disposition.</span></div>
+      <div class="term"><b>Punch</b><span>A minor outstanding defect to be cleared before handover.</span></div>
+      <div class="term"><b>Test Package</b><span>A system boundary prepared for pressure testing.</span></div>
+      <div class="term"><b>Loop Check</b><span>Verifying an instrument loop from sensor to control system.</span></div>
+      <div class="term"><b>Work Front</b><span>A ready work area where crews can be productive.</span></div>
+      <div class="term"><b>Constraint</b><span>Anything blocking the start or progress of work.</span></div>
+      <div class="term"><b>As-Built</b><span>Final documentation matching the constructed reality.</span></div>
+      <div class="term"><b>Turnover</b><span>Handing over systems together with their evidence.</span></div>
+    </div>
+  `
+},
+
+/* ============ FAQ (NEW) ============ */
+{
+  id:'faq', icon:'❓',
+  nav:{fa:'پرسش‌های متداول', en:'FAQ'},
+  fa:`
+    <details class="faq" open>
+      <summary>آیا مرحله Analyze داده‌ها را تغییر می‌دهد؟</summary>
+      <p>خیر. Analyze فقط فایل را می‌خواند و خطاها و تکراری‌ها را گزارش می‌کند. تا زمانی که <b>Import Valid Records</b> را نزنید، هیچ تغییر پایداری در دیتابیس ثبت نمی‌شود.</p>
+    </details>
+    <details class="faq">
+      <summary>چه زمانی از Quick Entry و چه زمانی از Data Exchange استفاده کنم؟</summary>
+      <p><b>Quick Entry</b> برای ثبت سریع یک رکورد در لحظه اجرا و توسط نیروی سایت است. <b>Data Exchange</b> برای ورود گروهی، پاک‌سازی داده و انتقال اطلاعات از سیستم‌های دیگر است.</p>
+    </details>
+    <details class="faq">
+      <summary>پرونده Turnover را از چه زمانی شروع کنم؟</summary>
+      <p>از همان اولین فعالیت اجرایی. هر Test Record، Punch، مدرک کیفیت و As-Built باید همان لحظه به Line، Spool، System یا Package مرتبط شود.</p>
+    </details>
+    <details class="faq">
+      <summary>پشتیبان‌گیری را چند وقت یک‌بار انجام دهم؟</summary>
+      <p>حداقل یک‌بار در پایان هر روز کاری و قبل از هر عملیات Import سنگین. از مسیر <b>File → Backup Database</b> استفاده کنید.</p>
+    </details>
+    <details class="faq">
+      <summary>اگر داده‌ای اشتباه وارد شد چه کنم؟</summary>
+      <p>رکورد را اصلاح کنید و در صورت نیاز NCR یا یادداشت اصلاح ثبت کنید. تاریخچه تغییرات را حذف نکنید؛ قابلیت ردیابی مهم‌تر از ظاهر تمیز داده است.</p>
+    </details>
+  `,
+  en:`
+    <details class="faq" open>
+      <summary>Does Analyze modify my data?</summary>
+      <p>No. Analyze only reads the workbook and reports errors and duplicates. Nothing is persistently written until you press <b>Import Valid Records</b>.</p>
+    </details>
+    <details class="faq">
+      <summary>When should I use Quick Entry instead of Data Exchange?</summary>
+      <p>Use <b>Quick Entry</b> for a single record captured at the point of work by field staff. Use <b>Data Exchange</b> for bulk loading, data cleansing and migration from other systems.</p>
+    </details>
+    <details class="faq">
+      <summary>When should turnover documentation start?</summary>
+      <p>From the very first execution activity. Every test record, punch, quality document and as-built mark-up should be linked to its line, spool, system or package immediately.</p>
+    </details>
+    <details class="faq">
+      <summary>How often should I back up?</summary>
+      <p>At minimum at the end of each working day and before any large import. Use <b>File → Backup Database</b>.</p>
+    </details>
+    <details class="faq">
+      <summary>What if I entered something incorrectly?</summary>
+      <p>Correct the record and, where required, raise an NCR or correction note. Do not delete history — traceability matters more than a clean-looking dataset.</p>
+    </details>
+  `
+},
+
+/* ============ PROMO ============ */
+{
+  id:'promo', icon:'⚡',
+  nav:{fa:'در یک نگاه', en:'At a Glance'},
+  fa:`
+    <p>PipeAgent برای اتصال اجرای سایت، کیفیت، Work Front، Completion و Turnover در یک فضای کاری طراحی شده است. وقتی تیم‌ها از یک داده اجرایی مشترک از سایت تا مدیریت استفاده کنند، گزارش‌کاری تکراری کمتر و Constraintها زودتر قابل مشاهده می‌شوند.</p>
+    <p class="slogan">PipeAgent — Know What’s Next. Control What Matters.</p>
+  `,
+  en:`
+    <p>PipeAgent is designed to connect field execution, quality, work fronts, completion and turnover in one operating workspace. Teams that use the same execution records from the field through management review can reduce duplicate reporting and make constraints visible earlier.</p>
+    <p class="slogan">PipeAgent — Know What’s Next. Control What Matters.</p>
+  `
+}
+
+];
+
+/* ---------- 3. STATE ---------- */
+const STORE = {
+  lang : 'pipeagent.lang',
+  theme: 'pipeagent.theme',
+  chk  : 'pipeagent.checklist.v1'
+};
+
+const state = {
+  lang : safeGet(STORE.lang) || 'fa',
+  theme: safeGet(STORE.theme) || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+};
+
+function safeGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function safeSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+
+const $  = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+
+/* ---------- 4. RENDER ---------- */
+let observer = null;
+
+function render(){
+  const L  = state.lang;
+  const ui = UI[L];
+
+  /* document-level */
+  document.documentElement.lang = ui.lang;
+  document.documentElement.dir  = ui.dir;
+  document.documentElement.dataset.theme = state.theme;
+  document.title = ui.title;
+
+  /* chrome */
+  $('#tagline').textContent        = ui.tagline;
+  $('#langBtn').textContent        = ui.switchLabel;
+  $('#langBtn').setAttribute('aria-label', ui.switchLabel);
+  $('#themeBtn').textContent       = state.theme === 'dark' ? ui.themeToLight : ui.themeToDark;
+  $('#themeBtn').setAttribute('aria-label', state.theme === 'dark' ? ui.themeToLight : ui.themeToDark);
+  $('#printBtn').textContent       = '🖨';
+  $('#printBtn').setAttribute('aria-label', ui.print);
+  const search = $('#search');
+  search.placeholder = ui.searchPlaceholder;
+  search.setAttribute('aria-label', ui.searchLabel);
+  $('#footer').textContent  = ui.footer;
+  $('#toTop').setAttribute('aria-label', ui.toTop);
+  $('#noResults').textContent = ui.noResults;
+
+  /* nav */
+  $('#navInner').innerHTML = SECTIONS
+    .map(s => `<a href="#${s.id}" data-target="${s.id}">${s.nav[L]}</a>`)
+    .join('');
+
+  /* content */
+  $('#content').innerHTML = SECTIONS
+    .map(s => `
+      <section id="${s.id}" class="card" aria-labelledby="h-${s.id}">
+        <h2 id="h-${s.id}"><span class="ico" aria-hidden="true">${s.icon}</span>${s.nav[L]}</h2>
+        ${s[L]}
+      </section>`)
+    .join('');
+
+  bind();
+}
+
+/* ---------- 5. BIND BEHAVIOUR AFTER EACH RENDER ---------- */
+function bind(){
+  restoreChecklist();
+  setupScrollSpy();
+  applySearch($('#search').value);
+}
+
+/* ---- 5a. Scroll spy ---- */
+function setupScrollSpy(){
+  if(observer) observer.disconnect();
+
+  const links = $$('#navInner a');
+  const map   = new Map(links.map(a => [a.dataset.target, a]));
+
+  observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      const link = map.get(entry.target.id);
+      if(!link) return;
+      if(entry.isIntersecting){
+        links.forEach(a => a.classList.remove('active'));
+        link.classList.add('active');
+      }
+    });
+  }, { rootMargin:'-88px 0px -65% 0px', threshold:0 });
+
+  SECTIONS.forEach(s => {
+    const el = document.getElementById(s.id);
+    if(el) observer.observe(el);
+  });
+}
+
+/* ---- 5b. Search filter ---- */
+function applySearch(rawQuery){
+  const q = (rawQuery || '').trim().toLowerCase();
+  const cards = $$('#content .card');
+  let visible = 0;
+
+  cards.forEach(card => {
+    const hit = !q || card.textContent.toLowerCase().includes(q);
+    card.style.display = hit ? '' : 'none';
+    if(hit) visible++;
+  });
+
+  /* keep the sticky nav in sync with what is visible */
+  $$('#navInner a').forEach(a => {
+    const el = document.getElementById(a.dataset.target);
+    const hidden = el && el.style.display === 'none';
+    a.style.display = hidden ? 'none' : '';
+  });
+
+  $('#noResults').classList.toggle('show', visible === 0);
+}
+
+/* ---- 5c. Checklist persistence ---- */
+function restoreChecklist(){
+  let saved = {};
+  try{ saved = JSON.parse(safeGet(STORE.chk) || '{}'); }catch(e){ saved = {}; }
+  $$('#checklist input[type="checkbox"]').forEach(cb => {
+    cb.checked = !!saved[cb.dataset.key];
+  });
+}
+
+document.addEventListener('change', e => {
+  const cb = e.target;
+  if(!cb.matches || !cb.matches('#checklist input[type="checkbox"]')) return;
+  let saved = {};
+  try{ saved = JSON.parse(safeGet(STORE.chk) || '{}'); }catch(e){ saved = {}; }
+  saved[cb.dataset.key] = cb.checked;
+  safeSet(STORE.chk, JSON.stringify(saved));
+});
+
+/* ---------- 6. CONTROLS ---------- */
+$('#langBtn').addEventListener('click', () => {
+  state.lang = state.lang === 'fa' ? 'en' : 'fa';
+  safeSet(STORE.lang, state.lang);
+  render();
+  window.scrollTo({ top:0, behavior:'smooth' });
+});
+
+$('#themeBtn').addEventListener('click', () => {
+  state.theme = state.theme === 'dark' ? 'light' : 'dark';
+  safeSet(STORE.theme, state.theme);
+  document.documentElement.dataset.theme = state.theme;
+  $('#themeBtn').textContent = state.theme === 'dark' ? UI[state.lang].themeToLight : UI[state.lang].themeToDark;
+});
+
+$('#printBtn').addEventListener('click', () => window.print());
+
+$('#search').addEventListener('input', e => applySearch(e.target.value));
+
+$('#search').addEventListener('keydown', e => {
+  if(e.key === 'Escape'){ e.target.value = ''; applySearch(''); e.target.blur(); }
+});
+
+/* ---------- 7. GLOBAL SHORTCUTS ---------- */
+document.addEventListener('keydown', e => {
+  const ctrl = e.ctrlKey || e.metaKey;
+
+  if(ctrl && e.key.toLowerCase() === 'k'){
+    e.preventDefault();
+    $('#search').focus();
+    $('#search').select();
+  }
+
+  if(ctrl && e.shiftKey && e.key.toLowerCase() === 'l'){
+    e.preventDefault();
+    $('#langBtn').click();
+  }
+
+  if(ctrl && e.shiftKey && e.key.toLowerCase() === 'd'){
+    e.preventDefault();
+    $('#themeBtn').click();
+  }
+});
+
+/* ---------- 8. PROGRESS BAR + BACK TO TOP ---------- */
+const progress = $('#progress');
+const toTop    = $('#toTop');
+let ticking = false;
+
+function onScroll(){
+  const doc  = document.documentElement;
+  const max  = doc.scrollHeight - doc.clientHeight;
+  const pct  = max > 0 ? (doc.scrollTop / max) * 100 : 0;
+
+  progress.style.width = pct + '%';
+
+  /* RTL-safe floating button */
+  toTop.classList.toggle('show', doc.scrollTop > 400);
+  ticking = false;
+}
+
+window.addEventListener('scroll', () => {
+  if(!ticking){ requestAnimationFrame(onScroll); ticking = true; }
+}, { passive:true });
+
+toTop.addEventListener('click', () => window.scrollTo({ top:0, behavior:'smooth' }));
+
+/* ---------- 9. BOOT ---------- */
+render();
+onScroll();
+</script>
+</body>
+</html>

@@ -1,0 +1,368 @@
+PipeAgent_5.1.2_PersianSky_Final
+|   .env.example
+|   api_server.py
+|   app.py
+|   config.py
+|   create_api_key.py
+|   DEPLOYMENT_CHECKLIST.md
+|   license_maker.py
+|   pipeagent.db
+|   PipeAgent_User_Guide_EN.html
+|   PipeAgent_User_Guide_FA.html
+|   pytest.ini
+|   README.md
+|   RELEASE_NOTES_5.2.3.md
+|   requirements.txt
+|   reset_admin.py
+|   run_api.py
+|   structure.txt
+|   
++---assets
+|   \---icons
+|           app_icon.ico
+|           
++---backups
++---core
+|   |   constants.py
+|   |   exceptions.py
+|   |   logging_config.py
+|   |   __init__.py
+|   |   
+|   \---__pycache__
+|           constants.cpython-313.pyc
+|           exceptions.cpython-313.pyc
+|           logging_config.cpython-313.pyc
+|           __init__.cpython-313.pyc
+|           
++---db
+|   |   manager.py
+|   |   models.py
+|   |   models_enterprise.py
+|   |   models_test_request_snippet.py
+|   |   __init__.py
+|   |   
+|   +---queries
+|   |   |   asbuilt_queries.py
+|   |   |   document_queries.py
+|   |   |   finishing_queries.py
+|   |   |   material_queries.py
+|   |   |   ndt_queries.py
+|   |   |   precomm_queries.py
+|   |   |   project_queries.py
+|   |   |   qaqc_queries.py
+|   |   |   spool_queries.py
+|   |   |   test_package_queries.py
+|   |   |   valve_queries.py
+|   |   |   welder_queries.py
+|   |   |   weld_queries.py
+|   |   |   __init__.py
+|   |   |   
+|   |   \---__pycache__
+|   |           asbuilt_queries.cpython-313.pyc
+|   |           document_queries.cpython-313.pyc
+|   |           finishing_queries.cpython-313.pyc
+|   |           material_queries.cpython-313.pyc
+|   |           ndt_queries.cpython-313.pyc
+|   |           precomm_queries.cpython-313.pyc
+|   |           project_queries.cpython-313.pyc
+|   |           qaqc_queries.cpython-313.pyc
+|   |           spool_queries.cpython-313.pyc
+|   |           test_package_queries.cpython-313.pyc
+|   |           valve_queries.cpython-313.pyc
+|   |           welder_queries.cpython-313.pyc
+|   |           weld_queries.cpython-313.pyc
+|   |           __init__.cpython-313.pyc
+|   |           
+|   \---__pycache__
+|           manager.cpython-313.pyc
+|           models.cpython-313.pyc
+|           models_enterprise.cpython-313.pyc
+|           __init__.cpython-313.pyc
+|           
++---docs
+|       ACCESS_INSPIRED_DESIGN.md
+|       COMMERCIAL_MODEL.md
+|       COMPETITIVE_POSITIONING.md
+|       ENTERPRISE_RELEASE_4_2.md
+|       EPC_SITE_EXECUTION_ARCHITECTURE.md
+|       EXECUTION_OS.md
+|       Executive Brochure.html
+|       GO_TO_MARKET.md
+|       INSTRUMENTATION_INTEGRATION.md
+|       PERSISTENT_EXECUTION_CONTROL.md
+|       PipeAgent_User_Guide.html
+|       Quick Start.html
+|       REPORTING_AND_INTELLIGENCE.md
+|       UX_AND_PRODUCT_PSYCHOLOGY.md
+|       
++---documents
++---exports
+|   +---commercial_audit
+|   |       ROI_P1_2026-09-10.json
+|   |       
+|   +---dossiers
+|   \---html_reports
+|           weld_report_WR-001.html
+|           
++---logs
+|       pipeagent.log
+|       
++---migrations
+|   |   alembic.ini
+|   |   env.py
+|   |   
+|   \---__pycache__
++---repositories
+|   |   asbuilt_repository.py
+|   |   base.py
+|   |   document_repository.py
+|   |   finishing_repository.py
+|   |   material_repository.py
+|   |   ndt_repository.py
+|   |   precomm_repository.py
+|   |   project_repository.py
+|   |   qaqc_repository.py
+|   |   spool_repository.py
+|   |   test_package_repository.py
+|   |   valve_repository.py
+|   |   welder_repository.py
+|   |   weld_repository.py
+|   |   __init__.py
+|   |   
+|   \---__pycache__
+|           asbuilt_repository.cpython-313.pyc
+|           base.cpython-313.pyc
+|           document_repository.cpython-313.pyc
+|           finishing_repository.cpython-313.pyc
+|           material_repository.cpython-313.pyc
+|           ndt_repository.cpython-313.pyc
+|           precomm_repository.cpython-313.pyc
+|           project_repository.cpython-313.pyc
+|           qaqc_repository.cpython-313.pyc
+|           spool_repository.cpython-313.pyc
+|           test_package_repository.cpython-313.pyc
+|           valve_repository.cpython-313.pyc
+|           welder_repository.cpython-313.pyc
+|           weld_repository.cpython-313.pyc
+|           __init__.cpython-313.pyc
+|           
++---security
+|   |   hashing.py
+|   |   session.py
+|   |   __init__.py
+|   |   
+|   \---__pycache__
+|           hashing.cpython-313.pyc
+|           session.cpython-313.pyc
+|           __init__.cpython-313.pyc
+|           
++---services
+|   |   ai_assistant_service.py
+|   |   api_security.py
+|   |   asbuilt_service.py
+|   |   connector_catalog.py
+|   |   data_exchange_service.py
+|   |   document_evidence_service.py
+|   |   document_workflow.py
+|   |   enterprise_integration.py
+|   |   execution_event_bridge.py
+|   |   execution_intelligence.py
+|   |   execution_os.py
+|   |   execution_os_service.py
+|   |   field_mobile_service.py
+|   |   field_sync_service.py
+|   |   finishing_service.py
+|   |   handover_service.py
+|   |   license.py
+|   |   line_list_service.py
+|   |   material_tracking.py
+|   |   ndt_service.py
+|   |   precomm_service.py
+|   |   predictive_control.py
+|   |   predictive_productivity.py
+|   |   product_commercial.py
+|   |   qaqc_service.py
+|   |   rbac.py
+|   |   reinstatement_service.py
+|   |   reporting_service.py
+|   |   rule_engine.py
+|   |   site_execution_service.py
+|   |   spooling_service.py
+|   |   sso_service.py
+|   |   telemetry_service.py
+|   |   test_package_service.py
+|   |   turnover_dossier_service.py
+|   |   valve_service.py
+|   |   welder_qualification_service.py
+|   |   welding_service.py
+|   |   work_front_intelligence.py
+|   |   __init__.py
+|   |   
+|   +---auth
+|   |   |   service.py
+|   |   |   __init__.py
+|   |   |   
+|   |   \---__pycache__
+|   |           service.cpython-313.pyc
+|   |           __init__.cpython-313.pyc
+|   |           
+|   \---__pycache__
+|           ai_assistant_service.cpython-313.pyc
+|           asbuilt_service.cpython-313.pyc
+|           data_exchange_service.cpython-313.pyc
+|           document_workflow.cpython-313.pyc
+|           execution_intelligence.cpython-313.pyc
+|           execution_os.cpython-313.pyc
+|           field_mobile_service.cpython-313.pyc
+|           finishing_service.cpython-313.pyc
+|           license.cpython-313.pyc
+|           line_list_service.cpython-313.pyc
+|           material_tracking.cpython-313.pyc
+|           ndt_service.cpython-313.pyc
+|           precomm_service.cpython-313.pyc
+|           predictive_productivity.cpython-313.pyc
+|           product_commercial.cpython-313.pyc
+|           qaqc_service.cpython-313.pyc
+|           reinstatement_service.cpython-313.pyc
+|           reporting_service.cpython-313.pyc
+|           rule_engine.cpython-313.pyc
+|           site_execution_service.cpython-313.pyc
+|           turnover_dossier_service.cpython-313.pyc
+|           valve_service.cpython-313.pyc
+|           welder_qualification_service.cpython-313.pyc
+|           welding_service.cpython-313.pyc
+|           work_front_intelligence.cpython-313.pyc
+|           __init__.cpython-313.pyc
+|           
++---tests
+|   |   conftest.py
+|   |   test_enterprise_features.py
+|   |   test_execution_os.py
+|   |   test_persistent_execution_control.py
+|   |   __init__.py
+|   |   
+|   +---integration
+|   |       __init__.py
+|   |       
+|   \---unit
+|       |   test_execution_intelligence.py
+|       |   test_product_commercial.py
+|       |   test_reporting_service.py
+|       |   __init__.py
+|       |   
+|       \---repositories
+|           |   test_project_repository.py
+|           |   
+|           \---__pycache__
+\---ui
+    |   main_window.py
+    |   splash.py
+    |   __init__.py
+    |   
+    +---dialogs
+    |   |   document_control_center.py
+    |   |   license_dialog.py
+    |   |   login_dialog.py
+    |   |   material_receipt_dialog.py
+    |   |   ncr_dialog.py
+    |   |   ndt_record_dialog.py
+    |   |   punch_item_dialog.py
+    |   |   pwht_record_dialog.py
+    |   |   spool_detail_dialog.py
+    |   |   test_package_dialog.py
+    |   |   user_admin_dialog.py
+    |   |   valve_test_dialog.py
+    |   |   welder_dialog.py
+    |   |   weld_detail_dialog.py
+    |   |   __init__.py
+    |   |   
+    |   \---__pycache__
+    |           license_dialog.cpython-313.pyc
+    |           login_dialog.cpython-313.pyc
+    |           __init__.cpython-313.pyc
+    |           
+    +---styles
+    |       theme.py
+    |       __init__.py
+    |       
+    +---tabs
+    |   |   ai_assistant_tab.py
+    |   |   asbuilt_tab.py
+    |   |   control_tower_tab.py
+    |   |   dashboard_tab.py
+    |   |   data_exchange_tab.py
+    |   |   digital_turnover_tab.py
+    |   |   documents_tab.py
+    |   |   execution_intelligence_tab.py
+    |   |   execution_os_tab.py
+    |   |   field_control_tab.py
+    |   |   field_erection_tab.py
+    |   |   finishing_tab.py
+    |   |   handover_tab.py
+    |   |   joints_tab.py
+    |   |   line_list_tab.py
+    |   |   mobile_field_tab.py
+    |   |   ndt_tab.py
+    |   |   precomm_tab.py
+    |   |   procurement_tab.py
+    |   |   project_setup_tab.py
+    |   |   qaqc_tab.py
+    |   |   reports_tab.py
+    |   |   site_execution_tab.py
+    |   |   smart_entry_tab.py
+    |   |   spooling_tab.py
+    |   |   supports_tab.py
+    |   |   test_package_tab.py
+    |   |   value_and_plans_tab.py
+    |   |   valves_tab.py
+    |   |   welder_mgmt_tab.py
+    |   |   work_front_tab.py
+    |   |   _shared.py
+    |   |   __init__.py
+    |   |   
+    |   \---__pycache__
+    |           ai_assistant_tab.cpython-313.pyc
+    |           asbuilt_tab.cpython-313.pyc
+    |           control_tower_tab.cpython-313.pyc
+    |           dashboard_tab.cpython-313.pyc
+    |           data_exchange_tab.cpython-313.pyc
+    |           digital_turnover_tab.cpython-313.pyc
+    |           documents_tab.cpython-313.pyc
+    |           execution_intelligence_tab.cpython-313.pyc
+    |           execution_os_tab.cpython-313.pyc
+    |           field_control_tab.cpython-313.pyc
+    |           field_erection_tab.cpython-313.pyc
+    |           finishing_tab.cpython-313.pyc
+    |           handover_tab.cpython-313.pyc
+    |           joints_tab.cpython-313.pyc
+    |           line_list_tab.cpython-313.pyc
+    |           mobile_field_tab.cpython-313.pyc
+    |           ndt_tab.cpython-313.pyc
+    |           precomm_tab.cpython-313.pyc
+    |           procurement_tab.cpython-313.pyc
+    |           project_setup_tab.cpython-313.pyc
+    |           qaqc_tab.cpython-313.pyc
+    |           reports_tab.cpython-313.pyc
+    |           site_execution_tab.cpython-313.pyc
+    |           smart_entry_tab.cpython-313.pyc
+    |           spooling_tab.cpython-313.pyc
+    |           supports_tab.cpython-313.pyc
+    |           test_package_tab.cpython-313.pyc
+    |           value_and_plans_tab.cpython-313.pyc
+    |           valves_tab.cpython-313.pyc
+    |           welder_mgmt_tab.cpython-313.pyc
+    |           work_front_tab.cpython-313.pyc
+    |           _shared.cpython-313.pyc
+    |           __init__.cpython-313.pyc
+    |           
+    +---widgets
+    |       search_bar.py
+    |       status_tag.py
+    |       stat_card.py
+    |       __init__.py
+    |       
+    \---__pycache__
+            main_window.cpython-313.pyc
+            splash.cpython-313.pyc
+            __init__.cpython-313.pyc
+            

@@ -1,0 +1,172 @@
+[2026-09-10 11:50:11] [[32;20mINFO    [0m] [db.manager:initialize:54] - Initializing database engine...
+[2026-09-10 11:50:11] [[32;20mINFO    [0m] [db.manager:initialize:65] - Creating all tables...
+[2026-09-10 11:50:17] [[32;20mINFO    [0m] [db.manager:initialize:70] - Seeding default data...
+[2026-09-10 11:50:17] [[32;20mINFO    [0m] [db.manager:_seed_default_data:170] - Default admin user created (username: admin, password: admin).
+[2026-09-10 11:50:17] [[32;20mINFO    [0m] [db.manager:_seed_default_data:174] - Default data seeding completed.
+[2026-09-10 11:50:17] [[32;20mINFO    [0m] [db.manager:initialize:73] - Database initialization completed successfully.
+[2026-09-10 11:50:25] [[32;20mINFO    [0m] [__main__:show_login:91] - Opening login dialog…
+[2026-09-10 11:50:36] [[32;20mINFO    [0m] [security.session:start_session:197] - Session started for user 'admin' (Role: admin, IP: None).
+[2026-09-10 11:50:36] [[32;20mINFO    [0m] [ui.main_window:__init__:548] - PipeAgent v5.2.3 shell created; deferred module loading scheduled (user=admin)
+[2026-09-10 11:50:36] [[32;20mINFO    [0m] [__main__:show_login:120] - Main window shown and retained. Ref: <ui.main_window.MainWindow object at 0x0000021D8945F890>
+[2026-09-10 11:50:37] [[32;20mINFO    [0m] [pipeagent.services.execution_intelligence:_build_tower_internal:609] - Control Tower built: 0 fronts, 0 recommendations, 0 bottlenecks (project=None)
+[2026-09-10 11:50:37] [[32;20mINFO    [0m] [ui.main_window:_load_next_tab:705] - PipeAgent v5.2.3 ready (user=admin, modules=31)
+[2026-09-10 12:04:48] [[32;20mINFO    [0m] [ui.main_window:closeEvent:1314] - PipeAgent closed by user (admin)
+[2026-09-10 14:19:28] [[32;20mINFO    [0m] [db.manager:initialize:54] - Initializing database engine...
+[2026-09-10 14:19:28] [[32;20mINFO    [0m] [db.manager:initialize:65] - Creating all tables...
+[2026-09-10 14:19:28] [[32;20mINFO    [0m] [db.manager:initialize:70] - Seeding default data...
+[2026-09-10 14:19:28] [[32;20mINFO    [0m] [db.manager:_seed_default_data:172] - Admin user already exists; skipping creation.
+[2026-09-10 14:19:28] [[32;20mINFO    [0m] [db.manager:_seed_default_data:174] - Default data seeding completed.
+[2026-09-10 14:19:28] [[32;20mINFO    [0m] [db.manager:initialize:73] - Database initialization completed successfully.
+[2026-09-10 14:19:36] [[32;20mINFO    [0m] [__main__:show_login:91] - Opening login dialog…
+[2026-09-10 14:19:45] [[32;20mINFO    [0m] [security.session:start_session:197] - Session started for user 'admin' (Role: admin, IP: None).
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+D' already registered for: dashboard
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:435] - Action 'menu_dashboard' already registered, overwriting
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+D' already registered for: dashboard, menu_dashboard
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+P' already registered for: project
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Shift+L' already registered for: line_list
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Shift+D' already registered for: documents
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+E' already registered for: data_exchange
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+M' already registered for: procurement
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+S' already registered for: spooling
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+J' already registered for: joints
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+W' already registered for: welder_mgmt
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+U' already registered for: supports
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+F' already registered for: erection
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+V' already registered for: valves
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+N' already registered for: ndt
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+Q' already registered for: qaqc
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Shift+T' already registered for: test_package
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Shift+P' already registered for: precomm
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Shift+F' already registered for: finishing
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Shift+H' already registered for: handover
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Shift+C' already registered for: field_control
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+W' already registered for: work_front
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+T' already registered for: control_tower
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+M' already registered for: mobile_field
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Shift+E' already registered for: site_execution
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+R' already registered for: reports
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Shift+A' already registered for: ai_assistant
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+K' already registered for: smart_entry
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+I' already registered for: execution_intelligence
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Shift+I' already registered for: execution_os
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+Y' already registered for: value_plans
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+B' already registered for: asbuilt
+[2026-09-10 14:19:45] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+D' already registered for: digital_turnover
+[2026-09-10 14:19:45] [[32;20mINFO    [0m] [ui.main_window:__init__:655] - PipeAgent v5.2.3 shell created; deferred module loading scheduled (user=admin)
+[2026-09-10 14:19:45] [[32;20mINFO    [0m] [__main__:show_login:120] - Main window shown and retained. Ref: <ui.main_window.MainWindow object at 0x00000243728E9E50>
+[2026-09-10 14:19:46] [[32;20mINFO    [0m] [pipeagent.services.execution_intelligence:_build_tower_internal:609] - Control Tower built: 0 fronts, 0 recommendations, 0 bottlenecks (project=None)
+[2026-09-10 14:19:46] [[32;20mINFO    [0m] [ui.main_window:_load_next_tab:846] - PipeAgent v5.2.3 ready (user=admin, modules=31)
+[2026-09-10 14:23:35] [[32;20mINFO    [0m] [ui.main_window:closeEvent:1550] - PipeAgent closed by user (admin)
+[2026-09-10 14:42:36] [[32;20mINFO    [0m] [__main__:main:483] - ════════════════════════════════════════════════════════════
+[2026-09-10 14:42:36] [[32;20mINFO    [0m] [__main__:main:484] - Starting PipeAgent v5.2.3
+[2026-09-10 14:42:36] [[32;20mINFO    [0m] [__main__:main:485] - ════════════════════════════════════════════════════════════
+[2026-09-10 14:42:37] [[32;20mINFO    [0m] [db.manager:initialize:54] - Initializing database engine...
+[2026-09-10 14:42:37] [[32;20mINFO    [0m] [db.manager:initialize:65] - Creating all tables...
+[2026-09-10 14:42:37] [[32;20mINFO    [0m] [db.manager:initialize:70] - Seeding default data...
+[2026-09-10 14:42:37] [[32;20mINFO    [0m] [db.manager:_seed_default_data:172] - Admin user already exists; skipping creation.
+[2026-09-10 14:42:37] [[32;20mINFO    [0m] [db.manager:_seed_default_data:174] - Default data seeding completed.
+[2026-09-10 14:42:37] [[32;20mINFO    [0m] [db.manager:initialize:73] - Database initialization completed successfully.
+[2026-09-10 14:42:37] [[32;20mINFO    [0m] [__main__:_stage_database:154] - Database initialized successfully
+[2026-09-10 14:42:40] [[32;20mINFO    [0m] [__main__:_show_login_dialog:266] - Opening login dialog
+[2026-09-10 14:42:50] [[32;20mINFO    [0m] [security.session:start_session:197] - Session started for user 'admin' (Role: admin, IP: None).
+[2026-09-10 14:42:50] [[32;20mINFO    [0m] [__main__:_show_login_dialog:298] - Session started for user 'admin'
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+D' already registered for: dashboard
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:435] - Action 'menu_dashboard' already registered, overwriting
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+D' already registered for: menu_dashboard, dashboard
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+P' already registered for: project
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Shift+L' already registered for: line_list
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Shift+D' already registered for: documents
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+E' already registered for: data_exchange
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+M' already registered for: procurement
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+S' already registered for: spooling
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+J' already registered for: joints
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+W' already registered for: welder_mgmt
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+U' already registered for: supports
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+F' already registered for: erection
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+V' already registered for: valves
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+N' already registered for: ndt
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+Q' already registered for: qaqc
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Shift+T' already registered for: test_package
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Shift+P' already registered for: precomm
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Shift+F' already registered for: finishing
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Shift+H' already registered for: handover
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Shift+C' already registered for: field_control
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+W' already registered for: work_front
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+T' already registered for: control_tower
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+M' already registered for: mobile_field
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Shift+E' already registered for: site_execution
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+R' already registered for: reports
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Shift+A' already registered for: ai_assistant
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+K' already registered for: smart_entry
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+I' already registered for: execution_intelligence
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Shift+I' already registered for: execution_os
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+Y' already registered for: value_plans
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+B' already registered for: asbuilt
+[2026-09-10 14:42:50] [[33;20mWARNING [0m] [ui.main_window:register:445] - Shortcut 'Ctrl+Alt+D' already registered for: digital_turnover
+[2026-09-10 14:42:50] [[32;20mINFO    [0m] [ui.main_window:__init__:655] - PipeAgent v5.2.3 shell created; deferred module loading scheduled (user=admin)
+[2026-09-10 14:42:50] [[32;20mINFO    [0m] [__main__:_launch_main_window:350] - PipeAgent v5.2.3 workspace launched (user=admin)
+[2026-09-10 14:42:51] [[32;20mINFO    [0m] [pipeagent.services.execution_intelligence:_build_tower_internal:609] - Control Tower built: 0 fronts, 0 recommendations, 0 bottlenecks (project=None)
+[2026-09-10 14:42:51] [[32;20mINFO    [0m] [ui.main_window:_load_next_tab:846] - PipeAgent v5.2.3 ready (user=admin, modules=31)
+[2026-09-10 14:50:53] [[32;20mINFO    [0m] [ui.main_window:closeEvent:1550] - PipeAgent closed by user (admin)
+[2026-09-10 14:50:53] [[32;20mINFO    [0m] [__main__:main:492] - Qt event loop finished with code 0
+[2026-09-10 14:51:27] [[32;20mINFO    [0m] [__main__:main:483] - ════════════════════════════════════════════════════════════
+[2026-09-10 14:51:27] [[32;20mINFO    [0m] [__main__:main:484] - Starting PipeAgent v5.2.3
+[2026-09-10 14:51:27] [[32;20mINFO    [0m] [__main__:main:485] - ════════════════════════════════════════════════════════════
+[2026-09-10 14:51:28] [[32;20mINFO    [0m] [db.manager:initialize:54] - Initializing database engine...
+[2026-09-10 14:51:28] [[32;20mINFO    [0m] [db.manager:initialize:65] - Creating all tables...
+[2026-09-10 14:51:28] [[32;20mINFO    [0m] [db.manager:initialize:70] - Seeding default data...
+[2026-09-10 14:51:28] [[32;20mINFO    [0m] [db.manager:_seed_default_data:172] - Admin user already exists; skipping creation.
+[2026-09-10 14:51:28] [[32;20mINFO    [0m] [db.manager:_seed_default_data:174] - Default data seeding completed.
+[2026-09-10 14:51:28] [[32;20mINFO    [0m] [db.manager:initialize:73] - Database initialization completed successfully.
+[2026-09-10 14:51:28] [[32;20mINFO    [0m] [__main__:_stage_database:154] - Database initialized successfully
+[2026-09-10 14:51:31] [[32;20mINFO    [0m] [__main__:_show_login_dialog:266] - Opening login dialog
+[2026-09-10 14:51:39] [[32;20mINFO    [0m] [security.session:start_session:197] - Session started for user 'admin' (Role: admin, IP: None).
+[2026-09-10 14:51:39] [[32;20mINFO    [0m] [__main__:_show_login_dialog:298] - Session started for user 'admin'
+[2026-09-10 14:51:39] [[32;20mINFO    [0m] [ui.main_window:_build_module_actions:686] - Registered 31 module actions
+[2026-09-10 14:51:39] [[32;20mINFO    [0m] [ui.main_window:__init__:655] - PipeAgent v5.2.3 shell created; deferred module loading scheduled (user=admin)
+[2026-09-10 14:51:39] [[32;20mINFO    [0m] [__main__:_launch_main_window:350] - PipeAgent v5.2.3 workspace launched (user=admin)
+[2026-09-10 14:51:40] [[32;20mINFO    [0m] [pipeagent.services.execution_intelligence:_build_tower_internal:609] - Control Tower built: 0 fronts, 0 recommendations, 0 bottlenecks (project=None)
+[2026-09-10 14:51:40] [[32;20mINFO    [0m] [ui.main_window:_load_next_tab:872] - PipeAgent v5.2.3 ready (user=admin, modules=31)
+[2026-09-10 14:52:46] [[32;20mINFO    [0m] [ui.main_window:closeEvent:1525] - PipeAgent closed by user (admin)
+[2026-09-10 14:52:46] [[32;20mINFO    [0m] [__main__:main:492] - Qt event loop finished with code 0
+[2026-09-10 15:23:57] [[32;20mINFO    [0m] [__main__:main:483] - ════════════════════════════════════════════════════════════
+[2026-09-10 15:23:57] [[32;20mINFO    [0m] [__main__:main:484] - Starting PipeAgent v5.2.3
+[2026-09-10 15:23:57] [[32;20mINFO    [0m] [__main__:main:485] - ════════════════════════════════════════════════════════════
+[2026-09-10 15:23:58] [[32;20mINFO    [0m] [db.manager:initialize:54] - Initializing database engine...
+[2026-09-10 15:23:58] [[32;20mINFO    [0m] [db.manager:initialize:65] - Creating all tables...
+[2026-09-10 15:23:58] [[32;20mINFO    [0m] [db.manager:initialize:70] - Seeding default data...
+[2026-09-10 15:23:58] [[32;20mINFO    [0m] [db.manager:_seed_default_data:172] - Admin user already exists; skipping creation.
+[2026-09-10 15:23:58] [[32;20mINFO    [0m] [db.manager:_seed_default_data:174] - Default data seeding completed.
+[2026-09-10 15:23:58] [[32;20mINFO    [0m] [db.manager:initialize:73] - Database initialization completed successfully.
+[2026-09-10 15:23:58] [[32;20mINFO    [0m] [__main__:_stage_database:154] - Database initialized successfully
+[2026-09-10 15:24:01] [[32;20mINFO    [0m] [__main__:_show_login_dialog:266] - Opening login dialog
+[2026-09-10 15:24:10] [[32;20mINFO    [0m] [security.session:start_session:197] - Session started for user 'admin' (Role: admin, IP: None).
+[2026-09-10 15:24:10] [[32;20mINFO    [0m] [__main__:_show_login_dialog:298] - Session started for user 'admin'
+[2026-09-10 15:24:10] [[32;20mINFO    [0m] [ui.main_window:_build_module_actions:686] - Registered 31 module actions
+[2026-09-10 15:24:10] [[32;20mINFO    [0m] [ui.main_window:__init__:655] - PipeAgent v5.2.3 shell created; deferred module loading scheduled (user=admin)
+[2026-09-10 15:24:10] [[32;20mINFO    [0m] [__main__:_launch_main_window:350] - PipeAgent v5.2.3 workspace launched (user=admin)
+[2026-09-10 15:24:10] [[32;20mINFO    [0m] [pipeagent.services.execution_intelligence:_build_tower_internal:609] - Control Tower built: 0 fronts, 0 recommendations, 0 bottlenecks (project=None)
+[2026-09-10 15:24:11] [[32;20mINFO    [0m] [ui.main_window:_load_next_tab:872] - PipeAgent v5.2.3 ready (user=admin, modules=31)
+[2026-09-10 15:34:59] [[32;20mINFO    [0m] [ui.main_window:closeEvent:1525] - PipeAgent closed by user (admin)
+[2026-09-10 15:34:59] [[32;20mINFO    [0m] [__main__:main:492] - Qt event loop finished with code 0
+[2026-09-10 17:59:08] [[32;20mINFO    [0m] [__main__:main:483] - ════════════════════════════════════════════════════════════
+[2026-09-10 17:59:08] [[32;20mINFO    [0m] [__main__:main:484] - Starting PipeAgent v5.2.3
+[2026-09-10 17:59:08] [[32;20mINFO    [0m] [__main__:main:485] - ════════════════════════════════════════════════════════════
+[2026-09-10 17:59:09] [[32;20mINFO    [0m] [db.manager:initialize:54] - Initializing database engine...
+[2026-09-10 17:59:09] [[32;20mINFO    [0m] [db.manager:initialize:65] - Creating all tables...
+[2026-09-10 17:59:09] [[32;20mINFO    [0m] [db.manager:initialize:70] - Seeding default data...
+[2026-09-10 17:59:09] [[32;20mINFO    [0m] [db.manager:_seed_default_data:172] - Admin user already exists; skipping creation.
+[2026-09-10 17:59:09] [[32;20mINFO    [0m] [db.manager:_seed_default_data:174] - Default data seeding completed.
+[2026-09-10 17:59:09] [[32;20mINFO    [0m] [db.manager:initialize:73] - Database initialization completed successfully.
+[2026-09-10 17:59:09] [[32;20mINFO    [0m] [__main__:_stage_database:154] - Database initialized successfully
+[2026-09-10 17:59:12] [[32;20mINFO    [0m] [__main__:_show_login_dialog:266] - Opening login dialog
+[2026-09-10 17:59:24] [[32;20mINFO    [0m] [security.session:start_session:197] - Session started for user 'admin' (Role: admin, IP: None).
+[2026-09-10 17:59:24] [[32;20mINFO    [0m] [__main__:_show_login_dialog:298] - Session started for user 'admin'
+[2026-09-10 17:59:24] [[32;20mINFO    [0m] [ui.main_window:_build_module_actions:686] - Registered 31 module actions
+[2026-09-10 17:59:24] [[32;20mINFO    [0m] [ui.main_window:__init__:655] - PipeAgent v5.2.3 shell created; deferred module loading scheduled (user=admin)
+[2026-09-10 17:59:24] [[32;20mINFO    [0m] [__main__:_launch_main_window:350] - PipeAgent v5.2.3 workspace launched (user=admin)
+[2026-09-10 17:59:25] [[32;20mINFO    [0m] [pipeagent.services.execution_intelligence:_build_tower_internal:609] - Control Tower built: 0 fronts, 0 recommendations, 0 bottlenecks (project=None)
+[2026-09-10 17:59:25] [[32;20mINFO    [0m] [ui.main_window:_load_next_tab:872] - PipeAgent v5.2.3 ready (user=admin, modules=31)
+[2026-09-10 18:05:38] [[32;20mINFO    [0m] [pipeagent.services.execution_intelligence:_build_tower_internal:609] - Control Tower built: 0 fronts, 0 recommendations, 0 bottlenecks (project=None)
+[2026-09-10 18:07:15] [[32;20mINFO    [0m] [ui.main_window:closeEvent:1525] - PipeAgent closed by user (admin)
+[2026-09-10 18:07:15] [[32;20mINFO    [0m] [__main__:main:492] - Qt event loop finished with code 0
