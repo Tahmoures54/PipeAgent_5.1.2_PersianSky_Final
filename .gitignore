@@ -17,6 +17,7 @@ env/
 # Local secrets and environment
 .env
 .env.local
+pipeagent.connection.json
 
 # Runtime data — never commit live project databases or generated files
 *.db

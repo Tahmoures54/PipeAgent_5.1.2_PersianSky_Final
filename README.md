@@ -1,4 +1,4 @@
-# PipeAgent 5.2.10 — Piping Execution Operating System
+# PipeAgent 5.2.11 — Piping Execution Operating System
 
 > **Know What’s Next. Control What Matters.**
 >
@@ -31,9 +31,15 @@ python -m pytest
 
 ## Database
 
-SQLite is the default for a single workstation.
+SQLite is the default for **one workstation**. Several people on one project need a shared server.
 
-For production, set:
+In the app: **File → Database Connection…** (administrators and project managers). Pick:
+
+- **SQL Server / Express** — typical on a Windows site PC (`localhost\SQLEXPRESS`). Install ODBC Driver 17/18 and `pip install pyodbc`.
+- **PostgreSQL** — office LAN or an online hosted database. Driver is already in `requirements.txt`.
+- **SQLite** — single laptop / demo.
+
+IT can lock the target with an environment variable (this overrides the dialog):
 
 ```text
 PIPEAGENT_DATABASE_URL=postgresql+psycopg://user:password@host:5432/pipeagent
@@ -41,13 +47,19 @@ PIPEAGENT_BOOTSTRAP_ADMIN_PASSWORD=<strong password>
 PIPEAGENT_ALLOW_INSECURE_DEFAULTS=false
 ```
 
-and install the PostgreSQL driver from `requirements.txt`.
+SQL Server Express example:
 
-`create_all` still creates missing tables. PipeAgent also applies small additive column patches (for example `projects.status`) so existing SQLite files keep working after upgrades.
+```text
+PIPEAGENT_DATABASE_URL=mssql+pyodbc://sa:change-me@localhost\SQLEXPRESS/PipeAgent?driver=ODBC+Driver+17+for+SQL+Server&TrustServerCertificate=yes
+```
+
+Create the empty database on the server first. Shared servers do not create `admin`/`admin`; set `PIPEAGENT_BOOTSTRAP_ADMIN_PASSWORD`. Local file backup is SQLite only — back up SQL Server / PostgreSQL with the DBA tools.
+
+See `docs/DATABASE.md`.
 
 ## Security
 
-- Never use default credentials in production. Local SQLite may still bootstrap `admin` / `admin` with a warning; PostgreSQL will not.
+- Never use default credentials in production. Local SQLite may still bootstrap `admin` / `admin` with a warning; PostgreSQL and SQL Server will not.
 - API keys are stored as hashes. The raw token is shown once at issue time.
 - Use TLS at the API boundary.
 - Use project-scoped API credentials.
@@ -86,4 +98,4 @@ The architecture stays above the OT control boundary. PLC/DCS/SCADA remain the c
 
 PipeAgent is a decision-support system. It does not replace engineering authority, QC acceptance, approved schedules or contractual controls.
 
-Column naming follows EPC weld-map / line-list practice; see `docs/DATA_MODEL_CONVENTION.md`. Site register mapping from execution databases: `docs/SITE_REGISTERS.md`. Competitive NDE/hydro/continuity engine: `docs/COMPETITIVE_POSITIONING.md`. Release notes: `RELEASE_NOTES_5.2.4.md`, `RELEASE_NOTES_5.2.5.md`, `RELEASE_NOTES_5.2.6.md`, `RELEASE_NOTES_5.2.7.md`, `RELEASE_NOTES_5.2.9.md`, `RELEASE_NOTES_5.2.10.md`.
+Column naming follows EPC weld-map / line-list practice; see `docs/DATA_MODEL_CONVENTION.md`. Site register mapping from execution databases: `docs/SITE_REGISTERS.md`. Shared SQLite / SQL Server / PostgreSQL setup: `docs/DATABASE.md`. Competitive NDE/hydro/continuity engine: `docs/COMPETITIVE_POSITIONING.md`. Release notes: `RELEASE_NOTES_5.2.4.md`, `RELEASE_NOTES_5.2.5.md`, `RELEASE_NOTES_5.2.6.md`, `RELEASE_NOTES_5.2.7.md`, `RELEASE_NOTES_5.2.9.md`, `RELEASE_NOTES_5.2.10.md`, `RELEASE_NOTES_5.2.11.md`.

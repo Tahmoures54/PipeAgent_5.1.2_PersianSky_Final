@@ -230,6 +230,10 @@ def can_backup_database(role: Optional[str]) -> bool:
     return canonical_role(role) in {"admin", "project_manager", "engineer"}
 
 
+def can_configure_database(role: Optional[str]) -> bool:
+    return canonical_role(role) in {"admin", "project_manager"}
+
+
 def first_allowed_module(role: Optional[str], preferred: str = "dashboard") -> str:
     allowed = accessible_modules(role)
     if preferred in allowed:

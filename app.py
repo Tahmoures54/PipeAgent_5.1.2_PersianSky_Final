@@ -127,32 +127,50 @@ class PipeAgentBootstrapper(QObject):
 
     def _stage_database(self):
         self._splash_message("[DB]       Initializing piping project database…")
+        last_error = (
+            "PipeAgent could not initialize its database.\n\n"
+            "Choose a local SQLite file or a shared SQL Server / PostgreSQL server."
+        )
+        for attempt in (1, 2):
+            try:
+                from config import get_database_url
+                self.db = DatabaseManager(get_database_url())
+                initialized = self.db.initialize()
+            except Exception as exc:
+                logger.exception("Database initialization raised an exception")
+                last_error = (
+                    "PipeAgent could not initialize its database.\n\n"
+                    f"{type(exc).__name__}: {exc}"
+                )
+                initialized = False
 
+            if initialized:
+                logger.info("Database initialized successfully")
+                QTimer.singleShot(STAGE_DELAY_MS, self._stage_license)
+                return
+
+            if attempt == 1 and self._offer_database_connection(last_error):
+                continue
+            break
+
+        logger.error("DatabaseManager.initialize() failed")
+        self._fatal("Database Error", last_error, EXIT_DB_FAILURE)
+
+    def _offer_database_connection(self, error: str) -> bool:
+        self._watchdog.stop()
+        if self.splash is not None:
+            self.splash.suspend()
+        accepted = False
         try:
-            self.db = DatabaseManager()
-            initialized = self.db.initialize()
-        except Exception as exc:
-            logger.exception("Database initialization raised an exception")
-            self._fatal(
-                "Database Error",
-                "PipeAgent could not initialize its database.\n\n"
-                f"{type(exc).__name__}: {exc}",
-                EXIT_DB_FAILURE,
-            )
-            return
-
-        if not initialized:
-            logger.error("DatabaseManager.initialize() returned False")
-            self._fatal(
-                "Database Error",
-                "PipeAgent could not initialize its database.\n\n"
-                "Please verify the data folder permissions and try again.",
-                EXIT_DB_FAILURE,
-            )
-            return
-
-        logger.info("Database initialized successfully")
-        QTimer.singleShot(STAGE_DELAY_MS, self._stage_license)
+            from ui.dialogs.database_connection_dialog import DatabaseConnectionDialog
+            dialog = DatabaseConnectionDialog(startup_error=error)
+            accepted = dialog.exec() == QDialog.DialogCode.Accepted
+        except Exception:
+            logger.exception("Database connection dialog failed")
+        if self.splash is not None:
+            self.splash.resume()
+        self._watchdog.start(WATCHDOG_TIMEOUT_MS)
+        return accepted
 
     # ───────────────────────────────────────────────────────
     #  STAGE 2 — LICENSE

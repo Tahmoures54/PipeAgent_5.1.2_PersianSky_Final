@@ -19,10 +19,11 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 
 from config import (
-    DATABASE_URL,
     BOOTSTRAP_ADMIN_PASSWORD,
     ALLOW_INSECURE_DEFAULTS,
+    get_database_url,
 )
+from db.connection_profiles import engine_kind
 from db.models import Base, User
 import db.models_enterprise  # ensure models are registered
 from core.exceptions import DatabaseError
@@ -331,12 +332,16 @@ def _utcnow() -> datetime:
 
 
 def _is_sqlite(url: str) -> bool:
-    return url.startswith("sqlite:")
+    return engine_kind(url) == "sqlite"
 
 
 def _is_memory_sqlite(url: str) -> bool:
     normalized = url.replace("\\", "/").lower()
     return normalized in {"sqlite://", "sqlite:///:memory:"} or ":memory:" in normalized
+
+
+def _is_server_database(url: str) -> bool:
+    return engine_kind(url) in {"postgresql", "mssql"}
 
 
 def _engine_kwargs(url: str) -> dict[str, Any]:
@@ -349,6 +354,10 @@ def _engine_kwargs(url: str) -> dict[str, Any]:
         kwargs["connect_args"] = {"check_same_thread": False}
         if _is_memory_sqlite(url):
             kwargs["poolclass"] = StaticPool
+    else:
+        kwargs["pool_size"] = 5
+        kwargs["max_overflow"] = 10
+        kwargs["pool_recycle"] = 1800
     return kwargs
 
 
@@ -369,7 +378,7 @@ class DatabaseManager:
     """Central database manager for the application."""
 
     def __init__(self, database_url: Optional[str] = None) -> None:
-        self.database_url = database_url or DATABASE_URL
+        self.database_url = database_url or get_database_url()
         self._engine: Optional[Engine] = None
         self._session_factory = None
         self.SessionLocal = None
@@ -454,7 +463,41 @@ class DatabaseManager:
             self.initialize()
 
     def _quote_ident(self, name: str) -> str:
+        dialect = ""
+        if self._engine is not None:
+            dialect = getattr(self._engine.dialect, "name", "") or ""
+        if dialect == "mssql":
+            return "[" + name.replace("]", "]]") + "]"
         return '"' + name.replace('"', '""') + '"'
+
+    def _rename_column_sql(self, table: str, old: str, new: str) -> str:
+        dialect = ""
+        if self._engine is not None:
+            dialect = getattr(self._engine.dialect, "name", "") or ""
+        if dialect == "mssql":
+            return (
+                f"EXEC sp_rename N'{table}.{old}', N'{new}', N'COLUMN'"
+            )
+        return (
+            f"ALTER TABLE {self._quote_ident(table)} "
+            f"RENAME COLUMN {self._quote_ident(old)} TO {self._quote_ident(new)}"
+        )
+
+    @staticmethod
+    def _patch_column_ddl(ddl: str, dialect: str) -> str:
+        if dialect == "mssql":
+            return (
+                ddl.replace("BOOLEAN DEFAULT 0", "BIT DEFAULT 0")
+                .replace("BOOLEAN DEFAULT 1", "BIT DEFAULT 1")
+                .replace("BOOLEAN", "BIT")
+                .replace("TEXT", "NVARCHAR(max)")
+            )
+        if dialect == "postgresql":
+            return (
+                ddl.replace("BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT FALSE")
+                .replace("BOOLEAN DEFAULT 1", "BOOLEAN DEFAULT TRUE")
+            )
+        return ddl
 
     def _apply_column_renames(self) -> None:
         """Rename legacy columns to industry-standard names on existing databases."""
@@ -468,10 +511,7 @@ class DatabaseManager:
                 continue
             columns = {col["name"]: col for col in inspector.get_columns(table)}
             if old in columns and new not in columns:
-                rename_sql = (
-                    f"ALTER TABLE {self._quote_ident(table)} "
-                    f"RENAME COLUMN {self._quote_ident(old)} TO {self._quote_ident(new)}"
-                )
+                rename_sql = self._rename_column_sql(table, old, new)
                 try:
                     with self._engine.begin() as conn:
                         conn.execute(text(rename_sql))
@@ -523,12 +563,14 @@ class DatabaseManager:
             existing = {col["name"] for col in inspector.get_columns(table)}
             if column in existing:
                 continue
+            dialect = getattr(self._engine.dialect, "name", "") if self._engine else "sqlite"
+            column_ddl = self._patch_column_ddl(ddl, dialect)
             logger.info("Applying schema patch: %s.%s", table, column)
             with self._engine.begin() as conn:
                 conn.execute(
                     text(
                         f"ALTER TABLE {self._quote_ident(table)} "
-                        f"ADD COLUMN {self._quote_ident(column)} {ddl}"
+                        f"ADD COLUMN {self._quote_ident(column)} {column_ddl}"
                     )
                 )
             inspector.clear_cache()
@@ -633,9 +675,10 @@ class DatabaseManager:
     def _resolve_bootstrap_password(self) -> Optional[str]:
         if BOOTSTRAP_ADMIN_PASSWORD:
             return BOOTSTRAP_ADMIN_PASSWORD
-        if "postgresql" in (self.database_url or "").lower():
+        if _is_server_database(self.database_url or ""):
             logger.warning(
-                "Skipping default admin on PostgreSQL. Set PIPEAGENT_BOOTSTRAP_ADMIN_PASSWORD."
+                "Skipping default admin on a shared server database. "
+                "Set PIPEAGENT_BOOTSTRAP_ADMIN_PASSWORD."
             )
             return None
         if not ALLOW_INSECURE_DEFAULTS:

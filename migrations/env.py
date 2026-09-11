@@ -44,9 +44,10 @@ if config.config_file_name is not None:
 # Implementation note.
 # ──────────────────────────────────────────────
 try:
-    from config import DATABASE_URL
-    if DATABASE_URL:
-        config.set_main_option("sqlalchemy.url", str(DATABASE_URL))
+    from config import get_database_url
+    db_url = get_database_url()
+    if db_url:
+        config.set_main_option("sqlalchemy.url", str(db_url))
 except ImportError:
     # Implementation note.
     pass

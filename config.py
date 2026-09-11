@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# config.py – PipeAgent v5.2.10
+# config.py – PipeAgent v5.2.11
 
 from __future__ import annotations
 import os
@@ -30,7 +30,7 @@ _load_dotenv(PROJECT_ROOT / ".env")
 
 ORG_NAME = "PipeAgent"
 APP_NAME = "PipeAgent"
-APP_VERSION = "5.2.10"
+APP_VERSION = "5.2.11"
 SUPPORT_EMAIL = ""
 WHATSAPP_SUPPORT_PHONE = "+989160684552"
 WHATSAPP_SUPPORT_URL = "https://wa.me/989160684552"
@@ -42,7 +42,22 @@ BRAND_SUPPORT_LINE = "Connect the field. Predict the risk. Control the execution
 
 DATABASE_NAME = "pipeagent.db"
 DATABASE_PATH = PROJECT_ROOT / DATABASE_NAME
-DATABASE_URL = os.getenv("PIPEAGENT_DATABASE_URL", f"sqlite:///{DATABASE_PATH}")
+CONNECTION_PROFILE_PATH = PROJECT_ROOT / "pipeagent.connection.json"
+
+
+def get_database_url() -> str:
+    """Env URL wins; otherwise the saved profile; otherwise local SQLite."""
+    from db.connection_profiles import resolve_database_url
+
+    return resolve_database_url(
+        env_url=os.getenv("PIPEAGENT_DATABASE_URL"),
+        profile_path=CONNECTION_PROFILE_PATH,
+        sqlite_path=DATABASE_PATH,
+    )
+
+
+DATABASE_URL = get_database_url()
+DATABASE_URL_LOCKED_BY_ENV = bool(os.getenv("PIPEAGENT_DATABASE_URL", "").strip())
 
 def default_db_path() -> str:
     return str(DATABASE_PATH)

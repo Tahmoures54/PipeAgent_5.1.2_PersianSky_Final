@@ -12,6 +12,7 @@ from services.module_access import (
     accessible_modules,
     can_access_module,
     can_backup_database,
+    can_configure_database,
     can_manage_users,
     canonical_role,
     first_allowed_module,
@@ -63,6 +64,8 @@ def test_nav_structure_covers_module_keys():
     assert "technical_query" in activity_keys
     assert first_allowed_module("welder") == "dashboard"
     assert role_label("admin").lower().startswith("admin")
+    assert can_configure_database("admin")
+    assert not can_configure_database("viewer")
 
 
 def test_shell_uses_teamwork_and_help_for_support():
@@ -74,4 +77,5 @@ def test_shell_uses_teamwork_and_help_for_support():
     assert "Contact Support" in text
     assert 'QPushButton("Support")' not in text
     assert 'addMenu("&Users")' not in text
+    assert "Database Connection" in text
     assert "AlignLeft" in text

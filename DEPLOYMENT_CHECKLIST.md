@@ -21,7 +21,7 @@
 - [ ] Install `requirements.txt` on target Windows workstation.
 - [ ] Launch `python app.py` and complete a real PyQt6 UI smoke test.
 - [ ] Verify printer / browser print-to-PDF for Welding and Fit-up HTML reports.
-- [ ] Configure PostgreSQL and run migration/backup/restore rehearsal.
+- [ ] Configure PostgreSQL or SQL Server Express and run a backup/restore rehearsal.
 - [ ] Configure TLS and reverse proxy for Enterprise API.
 - [ ] Configure OIDC/SSO with the customer's identity provider.
 - [ ] Configure real ERP/DMS/scheduling/BIM endpoints.

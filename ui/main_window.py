@@ -47,6 +47,7 @@ from config import (
     APP_NAME, APP_VERSION, ORG_NAME, BRAND_TAGLINE, PRODUCT_POSITIONING,
     DATABASE_PATH, BACKUP_DIR, PROJECT_ROOT,
 )
+from db.connection_profiles import describe_database_target, engine_kind
 from db.manager import DatabaseManager
 from security.session import SessionManager
 from services.license import check_license, format_license_status, get_license_info
@@ -55,6 +56,7 @@ from services.module_access import (
     accessible_modules,
     can_access_module,
     can_backup_database,
+    can_configure_database,
     can_manage_users,
     first_allowed_module,
     role_label,
@@ -1204,6 +1206,12 @@ class MainWindow(QMainWindow):
 
         file_menu.addSeparator()
 
+        self._db_connection_action = QAction("Database Connection…", self)
+        self._db_connection_action.triggered.connect(self._open_database_connection)
+        file_menu.addAction(self._db_connection_action)
+
+        file_menu.addSeparator()
+
         self._backup_action = QAction("Backup Database", self)
         self._backup_action.setShortcut("Ctrl+Shift+B")
         self._backup_action.triggered.connect(self._backup_database)
@@ -1370,6 +1378,22 @@ class MainWindow(QMainWindow):
             self._backup_action.setEnabled(
                 can_backup_database(self.session_manager.user_role)
             )
+        if hasattr(self, "_db_connection_action"):
+            self._db_connection_action.setEnabled(
+                can_configure_database(self.session_manager.user_role)
+            )
+
+    def _open_database_connection(self):
+        if not can_configure_database(self.session_manager.user_role):
+            QMessageBox.warning(
+                self,
+                "Access restricted",
+                "Database connection is limited to administrators and project managers.",
+            )
+            return
+        from ui.dialogs.database_connection_dialog import DatabaseConnectionDialog
+        dialog = DatabaseConnectionDialog(self)
+        dialog.exec()
 
     def _open_user_admin(self):
         if not can_manage_users(self.session_manager.user_role):
@@ -1438,6 +1462,15 @@ class MainWindow(QMainWindow):
             )
             return
         try:
+            if engine_kind(getattr(self.db, "database_url", "") or "") != "sqlite":
+                QMessageBox.information(
+                    self,
+                    "Database Backup",
+                    "This workstation is using a shared server database.\n\n"
+                    "Take backups with SQL Server Management Studio, "
+                    "pg_dump, or your DBA process — not a local SQLite file copy.",
+                )
+                return
             target = BackupService.backup_database(DATABASE_PATH, BACKUP_DIR)
             QMessageBox.information(
                 self, "Database Backup",
@@ -1538,9 +1571,8 @@ class MainWindow(QMainWindow):
         except Exception:
             self.lbl_license.setText("📜  License: N/A")
 
-        db_url = getattr(self.db, 'database_url', 'unknown')
-        db_name = db_url.split("/")[-1] if "/" in db_url else db_url
-        self.lbl_db.setText(f"🗄️  {db_name}")
+        db_url = getattr(self.db, "database_url", "") or ""
+        self.lbl_db.setText(f"🗄️  {describe_database_target(db_url)}")
         self.lbl_time.setText(f"🕒  {datetime.now().strftime('%Y-%m-%d %H:%M')}")
         self.lbl_module.setText(
             f"📍  PipeAgent › {self._current_group} › {self._current_module}"
