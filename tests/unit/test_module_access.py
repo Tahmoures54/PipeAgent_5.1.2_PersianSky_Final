@@ -63,3 +63,14 @@ def test_nav_structure_covers_module_keys():
     assert "technical_query" in activity_keys
     assert first_allowed_module("welder") == "dashboard"
     assert role_label("admin").lower().startswith("admin")
+
+
+def test_shell_uses_teamwork_and_help_for_support():
+    text = (Path(__file__).resolve().parents[2] / "ui" / "main_window.py").read_text(
+        encoding="utf-8"
+    )
+    assert 'addMenu("&Teamwork")' in text
+    assert 'QPushButton("Teamwork")' in text
+    assert "Contact Support" in text
+    assert 'QPushButton("Support")' not in text
+    assert 'addMenu("&Users")' not in text
