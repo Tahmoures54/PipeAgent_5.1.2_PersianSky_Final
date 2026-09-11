@@ -248,12 +248,9 @@ class ReportingService:
             ).filter(Weld.project_id == project_id).first()
 
             total_welds = weld_stats.total_welds or 0
-            if total_welds == 0:
-                return {"welds": {"total": 0, "repair_rate_pct": 0.0}}
-
-            total_dia_inch = float(weld_stats.total_dia_inch or 0.0)
-            accepted_dia_inch = float(weld_stats.accepted_dia_inch or 0.0)
-            repaired_count = weld_stats.repaired_count or 0
+            total_dia_inch = float(weld_stats.total_dia_inch or 0.0) if weld_stats else 0.0
+            accepted_dia_inch = float(weld_stats.accepted_dia_inch or 0.0) if weld_stats else 0.0
+            repaired_count = (weld_stats.repaired_count or 0) if weld_stats else 0
 
             # Implementation note.
             ndt_stats = session.query(
@@ -291,21 +288,36 @@ class ReportingService:
                 for w in welder_stats
             }
 
+            accepted_count = (weld_stats.accepted_count or 0) if weld_stats else 0
+            rejected_count = (weld_stats.rejected_count or 0) if weld_stats else 0
+            acceptance_joint_pct = round(accepted_count / total_welds * 100, 1) if total_welds else 0.0
+            repair_pct = round(repaired_count / total_welds * 100, 1) if total_welds else 0.0
+            rejection_pct = round(rejected_count / total_welds * 100, 1) if total_welds else 0.0
+            acceptance_di_pct = (
+                round(accepted_dia_inch / total_dia_inch * 100, 1) if total_dia_inch > 0 else 0.0
+            )
+            welds_block = {
+                "total": total_welds,
+                "total_joints_count": total_welds,
+                "total_dia_inch": total_dia_inch,
+                "completed_dia_inch": accepted_dia_inch,
+                "accepted_dia_inch": accepted_dia_inch,
+                "shop_dia_inch": float((weld_stats.shop_dia_inch or 0.0) if weld_stats else 0.0),
+                "field_dia_inch": float((weld_stats.field_dia_inch or 0.0) if weld_stats else 0.0),
+                "accepted_count": accepted_count,
+                "rejected_count": rejected_count,
+                "repaired_count": repaired_count,
+                "acceptance_rate_pct": acceptance_joint_pct,
+                "acceptance_rate_dia_inch_pct": acceptance_di_pct,
+                "repair_rate_pct": repair_pct,
+                "repair_rate_joint_pct": repair_pct,
+                "rejection_rate_pct": rejection_pct,
+            }
             return {
+                "lines": lines_count,
                 "lines_count": lines_count,
                 "documents_count": docs_count,
-                "welds": {
-                    "total_joints_count": total_welds,
-                    "total_dia_inch": total_dia_inch,
-                    "completed_dia_inch": completed_dia_inch,
-                    "shop_dia_inch": float(weld_stats.shop_dia_inch or 0.0),
-                    "field_dia_inch": float(weld_stats.field_dia_inch or 0.0),
-                    "accepted_count": weld_stats.accepted_count or 0,
-                    "rejected_count": weld_stats.rejected_count or 0,
-                    "repaired_count": repaired_count,
-                    "acceptance_rate_dia_inch_pct": round(accepted_dia_inch / total_dia_inch * 100, 1) if total_dia_inch > 0 else 0.0,
-                    "repair_rate_joint_pct": round(repaired_count / total_welds * 100, 1),
-                },
+                "welds": welds_block,
                 "ndt": {
                     "total_inspections": total_ndt,
                     "passed_inspections": passed_ndt,
@@ -314,12 +326,14 @@ class ReportingService:
                 },
                 "spools": {
                     "total": spools_total,
+                    "installed": spools_erected,
                     "installed_erected": spools_erected,
                 },
                 "test_packages": {
                     "total": tps_count,
                     "passed": tps_passed,
                 },
+                "by_welder": by_welder,
                 "by_welder_kpis": by_welder,
             }
 
@@ -556,6 +570,37 @@ class ReportingService:
         file_path.write_text(self._html_shell(f"Executive Report — {name}", body), encoding="utf-8")
         return str(file_path)
 
+    def export_management_analytics_pack(self, project_id: int) -> str:
+        """Write the unit / contractor / material / service HTML pack. Returns index path."""
+        from services.management_analytics import build_management_snapshot, write_management_pack
+
+        snapshot = build_management_snapshot(self.db, project_id)
+        return write_management_pack(self._html_shell, project_id, snapshot)
+
+    def management_group_sheets(self, project_id: int) -> Dict[str, List[Dict[str, Any]]]:
+        from services.management_analytics import (
+            SLICE_SPECS,
+            build_management_snapshot,
+            group_rows_as_dicts,
+        )
+
+        snapshot = build_management_snapshot(self.db, project_id)
+        sheets: Dict[str, List[Dict[str, Any]]] = {}
+        for key, title, _blurb in SLICE_SPECS:
+            if key == "quality_and_test":
+                continue
+            sheets[title[:31]] = group_rows_as_dicts(snapshot["groups"][key])
+        sheets["Findings"] = [
+            {
+                "Severity": item["severity"],
+                "Title": item["title"],
+                "Evidence": item["evidence"],
+                "Next action": item["action"],
+            }
+            for item in snapshot["findings"]
+        ]
+        return sheets
+
     # ── Export helpers ────────────────────────────────────────────────
     def export_csv(self, rows: List[Dict[str, Any]], filename: str) -> str:
         path = Path(EXPORT_DIR) / filename
@@ -643,6 +688,19 @@ class ReportingService:
         .watermark { position:fixed; top:45%; left:10%; right:10%; text-align:center; font-size:36pt; color:rgba(120,80,0,.08); transform:rotate(-25deg); font-weight:700; }
         .page-break { page-break-before:always; }
         @media print { .no-print { display:none !important; } }
+        .kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:10px 0 16px; }
+        .kpi { border:1px solid #cbd5e1; border-left:4px solid #17365d; padding:8px 10px; background:#f8fafc; }
+        .kpi .n { font-size:16pt; font-weight:800; color:#17365d; }
+        .kpi .l { font-size:8pt; color:#64748b; text-transform:uppercase; font-weight:700; letter-spacing:.03em; }
+        .kpi .s { font-size:8pt; color:#64748b; }
+        .bar { display:inline-block; vertical-align:middle; background:#e8eef6; height:8px; width:72px; border-radius:4px; overflow:hidden; margin-right:6px; }
+        .bar > i { display:block; height:100%; background:#2563eb; }
+        .bar-n { font-variant-numeric:tabular-nums; }
+        .toc { columns:2; gap:18px; margin:8px 0 16px; }
+        .toc a { color:#17365d; }
+        .note { color:#64748b; font-size:9pt; }
+        .muted { color:#94a3b8; text-align:center; }
+        .cover-meta { display:grid; grid-template-columns:1fr 1fr; gap:4px 18px; margin:8px 0 12px; }
         """
 
     def _project_name(self, s, project_id: int) -> str:

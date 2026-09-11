@@ -79,3 +79,4 @@ def test_shell_uses_teamwork_and_help_for_support():
     assert 'addMenu("&Users")' not in text
     assert "Database Connection" in text
     assert "AlignLeft" in text
+    assert "Management Analytics" in text

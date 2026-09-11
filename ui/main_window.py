@@ -1204,6 +1204,11 @@ class MainWindow(QMainWindow):
         act.triggered.connect(self._export_project_pack)
         file_menu.addAction(act)
 
+        act = QAction("Export Management Analytics…", self)
+        act.setShortcut("Ctrl+Alt+M")
+        act.triggered.connect(self._export_management_analytics)
+        file_menu.addAction(act)
+
         file_menu.addSeparator()
 
         self._db_connection_action = QAction("Database Connection…", self)
@@ -1453,6 +1458,12 @@ class MainWindow(QMainWindow):
         exchange = self.tabs.get("data_exchange")
         if exchange and hasattr(exchange, "export_pack"):
             exchange.export_pack()
+
+    def _export_management_analytics(self):
+        self.switch_tab("reports")
+        reports = self.tabs.get("reports")
+        if reports and hasattr(reports, "_export_management_html"):
+            reports._export_management_html()
 
     def _backup_database(self):
         if not can_backup_database(self.session_manager.user_role):

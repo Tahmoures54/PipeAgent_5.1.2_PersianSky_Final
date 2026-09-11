@@ -173,6 +173,9 @@ class AsyncReportExporter(QThread):
             elif self.export_type == "html_executive":
                 path = self.svc.project_executive_html(self.project_id)
                 self.finished.emit(True, str(path))
+            elif self.export_type == "html_management":
+                path = self.svc.export_management_analytics_pack(self.project_id)
+                self.finished.emit(True, str(path))
         except Exception as e:
             logger.exception("Background report extraction aborted.")
             self.finished.emit(False, str(e))
@@ -375,8 +378,8 @@ class ReportsTab(QWidget):
         t = QLabel("📊 Project Reports & Advanced Analytics")
         t.setObjectName("mainTitle")
         s = QLabel(
-            "Construction Progress Analytics, Joint Logs, NDT Coverage Matrix, "
-            "Smart Operational Insights, and Requisitions."
+            "Construction progress, management HTML packs by unit / contractor / "
+            "material / service, NDT matrix, and requisitions."
         )
         s.setObjectName("subTitle")
         title_v.addWidget(t)
@@ -402,6 +405,11 @@ class ReportsTab(QWidget):
         self.btn_html.setObjectName("primaryBtn")
         self.btn_html.clicked.connect(self._export_executive_html)
         proj_box.addWidget(self.btn_html)
+
+        self.btn_mgmt = QPushButton("📑 Management Analytics")
+        self.btn_mgmt.setObjectName("successBtn")
+        self.btn_mgmt.clicked.connect(self._export_management_html)
+        proj_box.addWidget(self.btn_mgmt)
         hdr_lay.addLayout(proj_box)
 
         root.addWidget(header_card)
@@ -415,6 +423,7 @@ class ReportsTab(QWidget):
 
         self.tabs = QTabWidget()
         self.tabs.addTab(self._build_analytics_tab(), "📈 Dashboard & Welder KPI")
+        self.tabs.addTab(self._build_management_tab(), "📑 Management Analytics")
         self.tabs.addTab(self._build_insights_tab(), "💡 Smart Quality Insights")
         self.tabs.addTab(self._build_weld_log_tab(), "🔥 Weld Production Log")
         self.tabs.addTab(self._build_fitup_tab(), "🔧 Fit-up Report")
@@ -506,6 +515,9 @@ class ReportsTab(QWidget):
             self.q_sup.setRowCount(0)
             self.q_test.setRowCount(0)
             self.req_table.setRowCount(0)
+            if hasattr(self, "mgmt_table"):
+                self.mgmt_table.setRowCount(0)
+                self._mgmt_snapshot = None
 
     # ══════════════════════════════════════════════════════
     #  1. ANALYTICS & WELDER KPI
@@ -594,6 +606,115 @@ class ReportsTab(QWidget):
             self.welder_table.setSortingEnabled(True)
         except Exception:
             logger.exception("Failed to load analytics dashboard")
+
+    # ══════════════════════════════════════════════════════
+    #  1b. MANAGEMENT ANALYTICS
+    # ══════════════════════════════════════════════════════
+    def _build_management_tab(self) -> QWidget:
+        panel = QWidget()
+        lay = QVBoxLayout(panel)
+        lay.setContentsMargins(8, 10, 8, 8)
+
+        hint = QLabel(
+            "Slice the live weld register by unit, contractor, pipe material "
+            "and fluid service. Open the HTML pack for print-ready management reports."
+        )
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color:#334155;")
+        lay.addWidget(hint)
+
+        controls = QHBoxLayout()
+        controls.addWidget(QLabel("Group by"))
+        self.mgmt_group = QComboBox()
+        self.mgmt_group.addItem("Unit / area", "by_unit")
+        self.mgmt_group.addItem("Contractor", "by_contractor")
+        self.mgmt_group.addItem("Pipe material", "by_material")
+        self.mgmt_group.addItem("Fluid service", "by_service")
+        self.mgmt_group.addItem("Pipe class", "by_pipe_class")
+        self.mgmt_group.addItem("NPS band", "by_nps")
+        self.mgmt_group.addItem("Weld status", "by_status")
+        controls.addWidget(self.mgmt_group)
+        refresh_btn = QPushButton("Refresh slice")
+        refresh_btn.setObjectName("secondaryBtn")
+        refresh_btn.clicked.connect(self._load_management)
+        controls.addWidget(refresh_btn)
+        html_btn = QPushButton("Open HTML pack")
+        html_btn.setObjectName("successBtn")
+        html_btn.clicked.connect(self._export_management_html)
+        controls.addWidget(html_btn)
+        controls.addStretch(1)
+        lay.addLayout(controls)
+
+        self.mgmt_findings = QLabel("Select a project to build the management slice.")
+        self.mgmt_findings.setWordWrap(True)
+        self.mgmt_findings.setStyleSheet(
+            "background:#f8fafc; padding:10px; border:1px solid #cbd5e1; "
+            "border-radius:6px; color:#334155;"
+        )
+        lay.addWidget(self.mgmt_findings)
+
+        self.mgmt_table = QTableWidget(0, 8)
+        self.mgmt_table.setHorizontalHeaderLabels([
+            "Group", "Joints", "Dia-inch", "Accepted",
+            "Progress %", "Repair %", "Awaiting NDT", "On hold",
+        ])
+        self._setup_table_style(self.mgmt_table)
+        lay.addWidget(self.mgmt_table, 1)
+        self._mgmt_snapshot = None
+        self.mgmt_group.currentIndexChanged.connect(self._fill_management_table)
+        return panel
+
+    def _load_management(self):
+        self._mgmt_snapshot = None
+        self.mgmt_table.setRowCount(0)
+        if not self.project_id:
+            self.mgmt_findings.setText("Select a project to build the management slice.")
+            return
+        try:
+            from services.management_analytics import build_management_snapshot
+
+            self._mgmt_snapshot = build_management_snapshot(self.db, self.project_id)
+            findings = self._mgmt_snapshot.get("findings") or []
+            if findings:
+                top = findings[0]
+                extra = f" (+{len(findings) - 1} more in the HTML pack)" if len(findings) > 1 else ""
+                self.mgmt_findings.setText(
+                    f"{top['severity']}: {top['title']} — {top['evidence']}{extra}"
+                )
+            else:
+                self.mgmt_findings.setText("No analytical findings for this project yet.")
+            self._fill_management_table()
+        except Exception:
+            logger.exception("Failed to load management analytics")
+            self.mgmt_findings.setText("Could not build the management slice for this project.")
+
+    def _fill_management_table(self):
+        self.mgmt_table.setRowCount(0)
+        snapshot = getattr(self, "_mgmt_snapshot", None)
+        if not snapshot:
+            return
+        key = self.mgmt_group.currentData() or "by_unit"
+        rows = snapshot["groups"].get(key) or []
+        self.mgmt_table.setSortingEnabled(False)
+        for row in rows:
+            r = self.mgmt_table.rowCount()
+            self.mgmt_table.insertRow(r)
+            values = [
+                row["label"],
+                str(row["welds"]),
+                f"{row['dia_inch']:.1f}",
+                str(row["accepted"]),
+                f"{row['progress_pct']}",
+                f"{row['repair_pct']}",
+                str(row["awaiting_ndt"]),
+                str(row["on_hold"]),
+            ]
+            for col, value in enumerate(values):
+                item = QTableWidgetItem(value)
+                if col == 5 and row["repair_pct"] >= 5:
+                    item.setForeground(QBrush(QColor("#991b1b")))
+                self.mgmt_table.setItem(r, col, item)
+        self.mgmt_table.setSortingEnabled(True)
 
     # ══════════════════════════════════════════════════════
     #  2. SMART QUALITY INSIGHTS
@@ -1363,6 +1484,7 @@ class ReportsTab(QWidget):
             "Fit-up": self.svc.fitup_report(self.project_id),
             "NDT Matrix": self.svc.ndt_matrix(self.project_id),
         }
+        sheets.update(self.svc.management_group_sheets(self.project_id))
 
         self._exporter_thread = AsyncReportExporter(
             self.svc, self.project_id, "excel_pack", custom_data=sheets
@@ -1396,6 +1518,8 @@ class ReportsTab(QWidget):
             return
 
         self.btn_html.setEnabled(False)
+        if hasattr(self, "btn_mgmt"):
+            self.btn_mgmt.setEnabled(False)
         self.export_progress.setVisible(True)
 
         # ✅ FIXED: cleanup previous thread
@@ -1414,8 +1538,56 @@ class ReportsTab(QWidget):
         self._exporter_thread.finished.connect(self._on_html_export_complete)
         self._exporter_thread.start()
 
+    def _export_management_html(self):
+        if not self.project_id:
+            QMessageBox.information(
+                self, "Project", "Select a project first."
+            )
+            return
+
+        self.btn_mgmt.setEnabled(False)
+        self.btn_html.setEnabled(False)
+        self.export_progress.setVisible(True)
+
+        if self._exporter_thread is not None:
+            try:
+                if self._exporter_thread.isRunning():
+                    self._exporter_thread.wait(2000)
+                self._exporter_thread.deleteLater()
+            except Exception:
+                pass
+            self._exporter_thread = None
+
+        self._exporter_thread = AsyncReportExporter(
+            self.svc, self.project_id, "html_management"
+        )
+        self._exporter_thread.finished.connect(self._on_management_export_complete)
+        self._exporter_thread.start()
+
+    def _on_management_export_complete(self, ok: bool, path: str):
+        self.btn_mgmt.setEnabled(True)
+        self.btn_html.setEnabled(True)
+        self.export_progress.setVisible(False)
+        if ok:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(path))
+            QMessageBox.information(
+                self, "Management Analytics",
+                "HTML pack opened (index plus unit, contractor, "
+                f"material, service and quality slices):\n{path}"
+            )
+        else:
+            QMessageBox.critical(
+                self, "Report Error",
+                f"Could not compile management analytics HTML:\n{path}"
+            )
+        if self._exporter_thread is not None:
+            self._exporter_thread.deleteLater()
+            self._exporter_thread = None
+
     def _on_html_export_complete(self, ok: bool, path: str):
         self.btn_html.setEnabled(True)
+        if hasattr(self, "btn_mgmt"):
+            self.btn_mgmt.setEnabled(True)
         self.export_progress.setVisible(False)
         if ok:
             QDesktopServices.openUrl(QUrl.fromLocalFile(path))
@@ -1457,6 +1629,7 @@ class ReportsTab(QWidget):
     # ── ORCHESTRATION ────────────────────────────────────────
     def refresh(self):
         self._load_analytics()
+        self._load_management()
         self._load_weld_log()
         self._load_fitup()
         self._load_ndt()

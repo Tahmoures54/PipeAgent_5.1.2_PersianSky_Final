@@ -75,3 +75,14 @@ The Executive HTML Report combines:
 - A weld-register snapshot
 
 This creates a practical management report without requiring external reporting software.
+
+## Management analytics HTML pack
+
+**Reports & Analytics → Management Analytics**, or **File → Export Management Analytics…**, writes a print-ready HTML folder:
+
+- Index with KPIs, analytical findings, and unit / contractor / material / service tables
+- Separate slice files: by unit, contractor, pipe material, fluid service, pipe class, NPS band, plus quality / NDT / test packages
+
+Grouping uses the live weld register (`area_name` / Area, `contractor`, `base_material`, `line_service`) and falls back to the line list when a joint field is blank. Dia-inch is parsed from `size_nps` (including `1-1/2` style sizes).
+
+The pack is a **management report**, not QC acceptance evidence. Excel Pack includes the same grouping sheets.

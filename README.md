@@ -1,4 +1,4 @@
-# PipeAgent 5.2.11 — Piping Execution Operating System
+# PipeAgent 5.2.12 — Piping Execution Operating System
 
 > **Know What’s Next. Control What Matters.**
 >
@@ -78,6 +78,7 @@ Open **Value & Plans** inside the application for the commercial model. See `doc
 - Piping execution master data: Project, Line, ISO, Spool, Weld, Material and WPS/PQR.
 - Fit-up, welding, NDT, repair, PWHT, testing, punch and turnover workflows.
 - Printable HTML Welding and Fit-up Draft / Official Reports.
+- Management analytics HTML pack by unit, contractor, pipe material, fluid service, pipe class and NPS.
 - QR-driven field execution and offline event capture.
 - Enterprise field synchronization with idempotent receipts.
 - Welding machine telemetry ingestion and deviation screening.
@@ -98,4 +99,4 @@ The architecture stays above the OT control boundary. PLC/DCS/SCADA remain the c
 
 PipeAgent is a decision-support system. It does not replace engineering authority, QC acceptance, approved schedules or contractual controls.
 
-Column naming follows EPC weld-map / line-list practice; see `docs/DATA_MODEL_CONVENTION.md`. Site register mapping from execution databases: `docs/SITE_REGISTERS.md`. Shared SQLite / SQL Server / PostgreSQL setup: `docs/DATABASE.md`. Competitive NDE/hydro/continuity engine: `docs/COMPETITIVE_POSITIONING.md`. Release notes: `RELEASE_NOTES_5.2.4.md`, `RELEASE_NOTES_5.2.5.md`, `RELEASE_NOTES_5.2.6.md`, `RELEASE_NOTES_5.2.7.md`, `RELEASE_NOTES_5.2.9.md`, `RELEASE_NOTES_5.2.10.md`, `RELEASE_NOTES_5.2.11.md`.
+Column naming follows EPC weld-map / line-list practice; see `docs/DATA_MODEL_CONVENTION.md`. Site register mapping from execution databases: `docs/SITE_REGISTERS.md`. Shared SQLite / SQL Server / PostgreSQL setup: `docs/DATABASE.md`. Competitive NDE/hydro/continuity engine: `docs/COMPETITIVE_POSITIONING.md`. Release notes: `RELEASE_NOTES_5.2.4.md`, `RELEASE_NOTES_5.2.5.md`, `RELEASE_NOTES_5.2.6.md`, `RELEASE_NOTES_5.2.7.md`, `RELEASE_NOTES_5.2.9.md`, `RELEASE_NOTES_5.2.10.md`, `RELEASE_NOTES_5.2.11.md`, `RELEASE_NOTES_5.2.12.md`.
