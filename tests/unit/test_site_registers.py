@@ -44,16 +44,24 @@ def test_fresh_schema_has_site_register_columns(db_manager):
     assert "fab_fitup_report_number" in support_cols
     assert "er_weld_report_number" in support_cols
     assert "pt_report_number" in support_cols
+    assert "base_material" in support_cols
+    assert "support_subtype" in support_cols
+    assert "location_description" in support_cols
+    assert "base_metal" not in support_cols
+    assert "type_2" not in support_cols
 
     pack_cols = _column_names(db_manager.engine, "test_packages")
-    assert "linecheck_result" in pack_cols
+    assert "line_check_result" in pack_cols
     assert "reinstatement_finished" in pack_cols
-    assert "inch_meter" in pack_cols
+    assert "inch_metre" in pack_cols
+    assert "line_check_finished" in pack_cols
+    assert "linecheck_finished" not in pack_cols
 
     action_cols = _column_names(db_manager.engine, "project_actions")
     assert "rt_report_number" in action_cols
-    assert "action_by_1" in action_cols
+    assert "performed_by_1" in action_cols
     assert "work_front" in action_cols
+    assert "action_by_1" not in action_cols
 
     doc_cols = _column_names(db_manager.engine, "documents")
     assert "receive_transmittal_number" in doc_cols
@@ -169,57 +177,65 @@ def test_access_headers_map_to_industry_columns():
 
     weld_cols = {
         "iso_number", "sheet_number", "install_location", "weld_number",
-        "ndt_percent_rt", "pwht_required", "weld_type", "material",
+        "ndt_extent_rt_pct", "pwht_required", "weld_type", "base_material",
         "left_component", "test_package_number", "remarks",
     }
     assert resolve_import_column("IsoNo", weld_cols) == "iso_number"
     assert resolve_import_column("AG/UG", weld_cols) == "install_location"
     assert resolve_import_column("JointNu", weld_cols) == "weld_number"
-    assert resolve_import_column("RT-Percent", weld_cols) == "ndt_percent_rt"
+    assert resolve_import_column("RT-Percent", weld_cols) == "ndt_extent_rt_pct"
     assert resolve_import_column("PWHT-Req", weld_cols) == "pwht_required"
     assert resolve_import_column("SF", weld_cols) == "weld_type"
-    assert resolve_import_column("BaseMetal", weld_cols) == "material"
+    assert resolve_import_column("BaseMetal", weld_cols) == "base_material"
     assert resolve_import_column("Left", weld_cols) == "left_component"
     assert resolve_import_column("TestPackageNo", weld_cols) == "test_package_number"
 
-    action_cols = {"document_number", "rt_report_number", "action_by_1"}
+    action_cols = {"document_number", "rt_report_number", "performed_by_1"}
     assert resolve_import_column("Document No", action_cols) == "document_number"
     assert resolve_import_column("RTNo", action_cols) == "rt_report_number"
-    assert resolve_import_column("Actions By1", action_cols) == "action_by_1"
+    assert resolve_import_column("Actions By1", action_cols) == "performed_by_1"
 
-    doc_cols = {"doc_number", "receive_transmittal_number", "description_fa"}
-    assert resolve_import_column("DocumentNo", doc_cols) == "doc_number"
+    doc_cols = {"document_number", "receive_transmittal_number", "description_fa"}
+    assert resolve_import_column("DocumentNo", doc_cols) == "document_number"
     assert resolve_import_column("ReceiveTransNo", doc_cols) == "receive_transmittal_number"
     assert resolve_import_column("DescriptionFarsi", doc_cols) == "description_fa"
 
-    mto_cols = {"source_document_number", "commodity_code", "miv_number", "two_year_qty"}
+    mto_cols = {
+        "source_document_number", "commodity_code", "miv_number",
+        "two_year_quantity",
+    }
     assert resolve_import_column("Doc NO", mto_cols) == "source_document_number"
     assert resolve_import_column("COMM-CODE", mto_cols) == "commodity_code"
     assert resolve_import_column("MIV_No", mto_cols) == "miv_number"
-    assert resolve_import_column("2 YEARS  QTY (pcs)", mto_cols) == "two_year_qty"
+    assert resolve_import_column("2 YEARS  QTY (pcs)", mto_cols) == "two_year_quantity"
 
-    support_cols = {"fab_fitup_report_number", "er_weld_report_number", "pt_report_number"}
+    support_cols = {
+        "fab_fitup_report_number", "er_weld_report_number",
+        "pt_report_number", "support_subtype", "base_material",
+    }
     assert resolve_import_column("FabFitupSupportReport", support_cols) == "fab_fitup_report_number"
     assert resolve_import_column("ErWeldSupportReport", support_cols) == "er_weld_report_number"
     assert resolve_import_column("PtReportNo", support_cols) == "pt_report_number"
+    assert resolve_import_column("Type2", support_cols) == "support_subtype"
+    assert resolve_import_column("BaseMetal", support_cols) == "base_material"
 
-    tq_cols = {"tq_number", "raised_date", "related_document", "status"}
+    tq_cols = {"tq_number", "raised_date", "related_document_number", "status"}
     assert resolve_import_column("TQ Number", tq_cols) == "tq_number"
     assert resolve_import_column("Date Raised", tq_cols) == "raised_date"
-    assert resolve_import_column("Related Document/Drawing", tq_cols) == "related_document"
+    assert resolve_import_column("Related Document/Drawing", tq_cols) == "related_document_number"
     assert resolve_import_column("Status (Open/Closed)", tq_cols) == "status"
 
     pack_cols = {
-        "package_number", "install_location", "linecheck_finished",
+        "package_number", "install_location", "line_check_finished",
         "pressure_test_result", "reinstatement_finished", "test_medium",
     }
     assert resolve_import_column("TestPackageNo", pack_cols) == "package_number"
     assert resolve_import_column("Ag_Ug", pack_cols) == "install_location"
-    assert resolve_import_column("Fin_Linecheck", pack_cols) == "linecheck_finished"
+    assert resolve_import_column("Fin_Linecheck", pack_cols) == "line_check_finished"
     assert resolve_import_column("Pressuretest_result", pack_cols) == "pressure_test_result"
     assert resolve_import_column("Fin_Reinstate", pack_cols) == "reinstatement_finished"
     assert resolve_import_column("T_Medum", pack_cols) == "test_medium"
 
-    company_cols = {"name", "logo_path"}
+    company_cols = {"name", "logo_file_path"}
     assert resolve_import_column("Compnay Name", company_cols) == "name"
-    assert resolve_import_column("Logo", company_cols) == "logo_path"
+    assert resolve_import_column("Logo", company_cols) == "logo_file_path"
