@@ -28,7 +28,7 @@ from urllib.parse import urlencode
 
 from PyQt6.QtCore import (
     Qt, QTimer, QPoint, QUrl, QPropertyAnimation, QEasingCurve,
-    pyqtProperty, pyqtSignal,
+    pyqtProperty, pyqtSignal, QEvent,
 )
 from PyQt6.QtGui import (
     QColor, QAction, QKeySequence, QDesktopServices, QPainter,
@@ -780,11 +780,8 @@ class MainWindow(QMainWindow):
         QLabel#brand { color: white; font-size: 22px; font-weight: 900; letter-spacing: 1px; background: transparent; }
         QLabel#brandSub { color: #DDFBFD; font-size: 10px; font-weight: 800; letter-spacing: 2px; background: transparent; }
         QLabel#userBadge { color: #075D67; background: #E8FAFB; border: 1px solid #A9E4E8; border-radius: 8px; padding: 0 14px; font-weight: 700; font-size: 12px; min-height: 36px; max-height: 36px; }
-        QLabel#liveIndicator { color: #EFFFFF; font-size: 11px; font-weight: 800; padding: 0 10px; background: transparent; min-height: 36px; }
-        QPushButton#topAction { background: rgba(255,255,255,0.16); color: white; border: 1px solid rgba(255,255,255,0.35); border-radius: 8px; padding: 0 14px; min-height: 36px; max-height: 36px; min-width: 108px; font-weight: 700; font-size: 12px; }
+        QPushButton#topAction { background: rgba(255,255,255,0.16); color: white; border: 1px solid rgba(255,255,255,0.35); border-radius: 8px; padding: 0 16px; min-height: 36px; max-height: 36px; min-width: 0; font-weight: 700; font-size: 12px; text-align: left; }
         QPushButton#topAction:hover { background: rgba(255,255,255,0.28); border-color: white; }
-        QPushButton#topAction[emphasis="true"] { background: white; color: #087F8C; border: none; font-weight: 800; }
-        QPushButton#topAction[emphasis="true"]:hover { background: #E7FAF8; color: #05616A; }
         QLabel#notifBadge { background: #E05A63; color: white; font-size: 10px; font-weight: 800; border-radius: 10px; min-width: 20px; min-height: 20px; padding: 2px 6px; }
         QFrame#sidebar { background: white; border-right: 1px solid #CBE8EB; }
         QToolButton#sidebarToggle { color: #087F8C; background: #F1FBFC; border: none; border-bottom: 1px solid #CBE8EB; font-size: 13px; font-weight: 900; text-align: left; padding-left: 16px; letter-spacing: 1px; }
@@ -1083,12 +1080,20 @@ class MainWindow(QMainWindow):
     def _build_topbar(self) -> QFrame:
         topbar = QFrame()
         topbar.setObjectName("topbar")
-        topbar.setFixedHeight(72)
+        topbar.setFixedHeight(64)
         layout = QHBoxLayout(topbar)
-        layout.setContentsMargins(20, 10, 20, 10)
-        layout.setSpacing(10)
+        layout.setContentsMargins(16, 10, 16, 10)
+        layout.setSpacing(8)
+        layout.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
 
-        brand_box = QVBoxLayout()
+        brand_wrap = QWidget()
+        brand_wrap.setSizePolicy(
+            QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred
+        )
+        brand_box = QVBoxLayout(brand_wrap)
+        brand_box.setContentsMargins(0, 0, 16, 0)
         brand_box.setSpacing(0)
         brand = QLabel("PipeAgent")
         brand.setObjectName("brand")
@@ -1096,52 +1101,61 @@ class MainWindow(QMainWindow):
         sub.setObjectName("brandSub")
         brand_box.addWidget(brand)
         brand_box.addWidget(sub)
-        layout.addLayout(brand_box)
+        layout.addWidget(brand_wrap, 0)
 
-        support_btn = QPushButton("Support")
-        support_btn.setObjectName("topAction")
-        support_btn.setProperty("emphasis", True)
-        support_btn.setToolTip("Open PipeAgent Support in WhatsApp Web")
-        support_btn.clicked.connect(self._open_whatsapp_support)
-        layout.addWidget(support_btn)
+        actions = QWidget()
+        actions.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
+        actions_layout = QHBoxLayout(actions)
+        actions_layout.setContentsMargins(0, 0, 0, 0)
+        actions_layout.setSpacing(8)
+        actions_layout.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
+
+        self._teamwork_btn = QPushButton("Teamwork")
+        self._teamwork_btn.setObjectName("topAction")
+        self._teamwork_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._teamwork_btn.setToolTip("Team roster and access levels (Ctrl+Shift+U)")
+        self._teamwork_btn.clicked.connect(self._open_user_admin)
+        actions_layout.addWidget(self._teamwork_btn)
 
         self._notif_btn = QPushButton("Alerts")
         self._notif_btn.setObjectName("topAction")
+        self._notif_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._notif_btn.setToolTip("Notifications (Ctrl+N)")
         self._notif_btn.clicked.connect(self._toggle_notifications)
-        layout.addWidget(self._notif_btn)
+        actions_layout.addWidget(self._notif_btn)
 
-        refresh_btn = QPushButton("Refresh")
-        refresh_btn.setObjectName("topAction")
-        refresh_btn.setToolTip("Refresh current module (F5)")
-        refresh_btn.clicked.connect(self._refresh_current)
-        layout.addWidget(refresh_btn)
-
-        self._users_btn = QPushButton("Users")
-        self._users_btn.setObjectName("topAction")
-        self._users_btn.setToolTip("Users and access levels")
-        self._users_btn.clicked.connect(self._open_user_admin)
-        layout.addWidget(self._users_btn)
-
-        layout.addStretch()
-
-        live = QLabel("● SYSTEM ONLINE")
-        live.setObjectName("liveIndicator")
-        layout.addWidget(live)
+        layout.addWidget(actions, 0)
+        layout.addStretch(1)
 
         self._notif_badge = NotificationBadge(self._notif_btn)
-        self._notif_badge.move(86, -2)
+        self._notif_btn.installEventFilter(self)
         self._notif_center = NotificationCenter(self)
         self._notif_center.countChanged.connect(self._notif_badge.set_count)
+        self._position_notif_badge()
 
         role = role_label(self.session_manager.user_role)
         user_name = self.session_manager.username or "Guest"
         self._user_badge = QLabel(f"  {user_name}  ·  {role}  ")
         self._user_badge.setObjectName("userBadge")
         self._user_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self._user_badge)
+        layout.addWidget(self._user_badge, 0)
 
         return topbar
+
+    def _position_notif_badge(self):
+        btn = getattr(self, "_notif_btn", None)
+        badge = getattr(self, "_notif_badge", None)
+        if btn is None or badge is None:
+            return
+        badge.adjustSize()
+        badge.move(max(btn.width() - badge.width() + 6, 0), -4)
+
+    def eventFilter(self, obj, event):  # noqa: N802
+        if obj is getattr(self, "_notif_btn", None) and event.type() == QEvent.Type.Resize:
+            self._position_notif_badge()
+        return super().eventFilter(obj, event)
 
     def _build_navigation(self):
         """
@@ -1171,7 +1185,7 @@ class MainWindow(QMainWindow):
         """
         mb = self.menuBar()
 
-        # Standard desktop order: File, then product, then Users / View / Help.
+        # Standard desktop order: File, PipeAgent, Teamwork, View, Help.
         file_menu = mb.addMenu("&File")
 
         act = QAction("Open Project Folder", self)
@@ -1232,23 +1246,23 @@ class MainWindow(QMainWindow):
             for icon, text, key, sc in items:
                 sub.addAction(self._module_actions[key])
 
-        users_menu = mb.addMenu("&Users")
+        team_menu = mb.addMenu("&Teamwork")
         role = role_label(self.session_manager.user_role)
         user_name = self.session_manager.username or "Guest"
         session_act = QAction(f"Signed in as {user_name}", self)
         session_act.setEnabled(False)
-        users_menu.addAction(session_act)
+        team_menu.addAction(session_act)
         role_act = QAction(f"Access level: {role}", self)
         role_act.setEnabled(False)
-        users_menu.addAction(role_act)
-        users_menu.addSeparator()
-        self._user_admin_action = QAction("Users and Access Levels…", self)
+        team_menu.addAction(role_act)
+        team_menu.addSeparator()
+        self._user_admin_action = QAction("Team Roster and Access Levels…", self)
         self._user_admin_action.setShortcut("Ctrl+Shift+U")
         self._user_admin_action.triggered.connect(self._open_user_admin)
-        users_menu.addAction(self._user_admin_action)
+        team_menu.addAction(self._user_admin_action)
         matrix_act = QAction("Show Access Matrix…", self)
         matrix_act.triggered.connect(self._show_access_matrix)
-        users_menu.addAction(matrix_act)
+        team_menu.addAction(matrix_act)
 
         # ── View menu ─────────────────────────────────────
         view_menu = mb.addMenu("&View")
@@ -1273,6 +1287,13 @@ class MainWindow(QMainWindow):
 
         help_menu.addSeparator()
 
+        act = QAction("Contact Support…", self)
+        act.setToolTip("Open WhatsApp chat with PipeAgent support")
+        act.triggered.connect(self._open_whatsapp_support)
+        help_menu.addAction(act)
+
+        help_menu.addSeparator()
+
         act = QAction("ℹ️  About PipeAgent", self)
         act.triggered.connect(self._show_about)
         help_menu.addAction(act)
@@ -1284,10 +1305,6 @@ class MainWindow(QMainWindow):
         act = QAction("⌨️  Keyboard Shortcuts", self)
         act.setShortcut("F1")
         act.triggered.connect(self._show_shortcuts)
-        help_menu.addAction(act)
-
-        act = QAction("💬  WhatsApp Support", self)
-        act.triggered.connect(self._open_whatsapp_support)
         help_menu.addAction(act)
 
     # ═══════════════════════════════════════════════════════
@@ -1344,11 +1361,11 @@ class MainWindow(QMainWindow):
         manage = can_manage_users(self.session_manager.user_role)
         if hasattr(self, "_user_admin_action"):
             self._user_admin_action.setEnabled(manage)
-        if hasattr(self, "_users_btn"):
-            self._users_btn.setVisible(True)
-            self._users_btn.setEnabled(True)
+        if hasattr(self, "_teamwork_btn"):
+            self._teamwork_btn.setVisible(True)
+            self._teamwork_btn.setEnabled(True)
             if not manage:
-                self._users_btn.setToolTip("View your access level")
+                self._teamwork_btn.setToolTip("View your access level")
         if hasattr(self, "_backup_action"):
             self._backup_action.setEnabled(
                 can_backup_database(self.session_manager.user_role)
@@ -1365,7 +1382,7 @@ class MainWindow(QMainWindow):
     def _show_access_matrix(self):
         QMessageBox.information(
             self,
-            "Users and access levels",
+            "Teamwork access levels",
             access_matrix_text(),
         )
 
@@ -1608,6 +1625,7 @@ class MainWindow(QMainWindow):
             ("Ctrl+W", "Work Front & Resources"),
             ("Ctrl+I", "Execution Intelligence"),
             ("Ctrl+Shift+I", "Execution OS"),
+            ("Ctrl+Shift+U", "Teamwork roster / access"),
             ("Ctrl+L", "Logout"),
             ("Ctrl+Q", "Exit Application"),
         ]

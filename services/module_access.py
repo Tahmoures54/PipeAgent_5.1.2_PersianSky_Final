@@ -3,7 +3,7 @@
 
 Canonical role keys are stored on ``users.role``. Display names from the
 user-admin dialog and the older session enums are normalised here so the
-menu, sidebar and File/Users actions stay consistent.
+menu, sidebar and File/Teamwork actions stay consistent.
 """
 
 from __future__ import annotations

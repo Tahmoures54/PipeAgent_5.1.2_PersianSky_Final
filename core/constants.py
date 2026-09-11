@@ -15,7 +15,7 @@ from __future__ import annotations
 # ═══════════════════════════════════════════════════════════
 
 APP_NAME = "PipeAgent"
-APP_VERSION = "5.2.9"
+APP_VERSION = "5.2.10"
 APP_CODENAME = "Titan"
 ORG_NAME = "Piping Execution Systems"
 BRAND_TAGLINE = "Know What's Next. Control What Matters."
