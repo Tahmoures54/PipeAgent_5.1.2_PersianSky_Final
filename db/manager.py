@@ -30,11 +30,118 @@ from security.hashing import hash_password as secure_hash_password
 
 logger = logging.getLogger(__name__)
 
+# Physical DB column renames applied BEFORE create_all so SQLAlchemy does not
+# add empty duplicates next to the legacy names.
+_COLUMN_RENAMES = (
+    ("welds", "weld_id", "weld_number"),
+    ("welds", "size", "size_nps"),
+    ("welds", "filler_heat_no", "heat_number_filler"),
+    ("wps_pqr", "wps_id", "wps_number"),
+    ("wps_pqr", "pqr_id", "pqr_number"),
+    ("welders", "stencil_no", "stencil_number"),
+    ("welders", "certificate_no", "certificate_number"),
+    ("ncr_records", "ncr_no", "ncr_number"),
+    ("handover_packages", "package_no", "package_number"),
+    ("mcc_records", "mcc_no", "mcc_number"),
+    ("walkdown_checklists", "walkdown_no", "walkdown_number"),
+    ("tie_in_records", "tie_in_no", "tie_in_number"),
+    ("test_requests", "request_no", "request_number"),
+    ("test_requests", "weld_id", "weld_number"),
+    ("punch_items", "weld_id", "weld_number"),
+    ("wrapping_records", "weld_id", "weld_number"),
+    ("asbuilt_records", "drawing_no", "drawing_number"),
+    ("asbuilt_markups", "drawing_no", "drawing_number"),
+    ("pipe_supports", "drawing_no", "drawing_number"),
+    ("dimensional_check_records", "drawing_no", "drawing_number"),
+    ("dimensional_check_records", "check_no", "check_number"),
+    ("material_issue_records", "issue_slip_no", "issue_slip_number"),
+    ("material_receipt_records", "delivery_note_no", "delivery_note_number"),
+    ("material_items", "size", "size_nps"),
+    ("material_takeoff", "size", "size_nps"),
+    ("weld_report_drafts", "report_no", "report_number"),
+    ("weld_report_drafts", "weld_pk", "weld_id"),
+    ("weld_report_drafts", "weld_no", "weld_number"),
+    ("weld_report_drafts", "spool_no", "spool_number"),
+    ("weld_report_drafts", "wps_id", "wps_number"),
+    ("weld_reports", "report_no", "report_number"),
+    ("weld_reports", "weld_pk", "weld_id"),
+    ("weld_reports", "weld_no", "weld_number"),
+    ("weld_reports", "spool_no", "spool_number"),
+    ("weld_reports", "wps_id", "wps_number"),
+    ("fitup_report_drafts", "report_no", "report_number"),
+    ("fitup_report_drafts", "weld_pk", "weld_id"),
+    ("fitup_report_drafts", "weld_no", "weld_number"),
+    ("fitup_report_drafts", "spool_no", "spool_number"),
+    ("fitup_report_drafts", "fitup_no", "fitup_number"),
+    ("fitup_reports", "report_no", "report_number"),
+    ("fitup_reports", "weld_pk", "weld_id"),
+    ("fitup_reports", "weld_no", "weld_number"),
+    ("fitup_reports", "spool_no", "spool_number"),
+    ("fitup_reports", "fitup_no", "fitup_number"),
+    ("transmittals", "transmittal_no", "transmittal_number"),
+    ("ndt_records", "weld_id_fk", "weld_id"),
+    ("joint_history", "weld_id_fk", "weld_id"),
+    ("pwht_records", "weld_id_fk", "weld_id"),
+    ("pwht_records", "pwht_procedure_no", "pwht_procedure_number"),
+    ("hardness_test_records", "weld_id_fk", "weld_id"),
+    ("ferrite_test_records", "weld_id_fk", "weld_id"),
+    ("weld_map_entries", "weld_id_fk", "weld_id"),
+    ("welding_telemetry", "weld_id_fk", "weld_id"),
+    ("document_evidences", "weld_id_fk", "weld_id"),
+    ("document_evidences", "document_id_fk", "document_id"),
+    ("transmittal_items", "document_id_fk", "document_id"),
+    ("test_packages", "test_pressure_bar", "test_pressure_barg"),
+    ("test_packages", "certificate_no", "certificate_number"),
+    ("leak_test_records", "test_pressure_bar", "test_pressure_barg"),
+    ("valve_records", "hydro_shell_pressure_bar", "hydro_shell_pressure_barg"),
+    ("valve_records", "hydro_seat_pressure_bar", "hydro_seat_pressure_barg"),
+)
+
 _SCHEMA_PATCHES = (
     ("projects", "status", "VARCHAR(40) DEFAULT 'ACTIVE'"),
     ("projects", "project_type", "VARCHAR(50)"),
+    ("projects", "contract_number", "VARCHAR(100)"),
+    ("projects", "site_location", "VARCHAR(200)"),
+    ("projects", "start_date", "DATE"),
+    ("projects", "target_completion_date", "DATE"),
     ("users", "email", "VARCHAR(255)"),
     ("users", "auth_provider", "VARCHAR(40) DEFAULT 'local'"),
+    ("line_list", "corrosion_allowance_mm", "FLOAT"),
+    ("line_list", "ndt_percent_pt", "FLOAT DEFAULT 0"),
+    ("line_list", "ndt_percent_mt", "FLOAT DEFAULT 0"),
+    ("line_list", "insulation_thickness_mm", "FLOAT"),
+    ("line_list", "sour_service", "BOOLEAN DEFAULT 0"),
+    ("line_list", "dn", "VARCHAR(30)"),
+    ("line_list", "pcf_number", "VARCHAR(100)"),
+    ("line_list", "isometric_revision", "VARCHAR(20)"),
+    ("welds", "schedule", "VARCHAR(30)"),
+    ("welds", "welding_process", "VARCHAR(50)"),
+    ("welds", "welding_position", "VARCHAR(30)"),
+    ("welds", "p_number", "VARCHAR(20)"),
+    ("welds", "group_number", "VARCHAR(20)"),
+    ("welds", "heat_number_pipe", "VARCHAR(100)"),
+    ("welds", "vt_result", "VARCHAR(30)"),
+    ("welders", "qualified_diameter_max_inch", "FLOAT"),
+    ("welders", "f_number", "VARCHAR(20)"),
+    ("welders", "progression", "VARCHAR(20)"),
+    ("welders", "backing", "VARCHAR(20)"),
+    ("welders", "last_welded_date", "DATE"),
+    ("wps_pqr", "p_number", "VARCHAR(20)"),
+    ("wps_pqr", "f_number", "VARCHAR(20)"),
+    ("wps_pqr", "a_number", "VARCHAR(20)"),
+    ("wps_pqr", "thickness_min_mm", "FLOAT"),
+    ("wps_pqr", "thickness_max_mm", "FLOAT"),
+    ("wps_pqr", "position", "VARCHAR(30)"),
+    ("wps_pqr", "gas_backing", "BOOLEAN DEFAULT 0"),
+    ("ndt_records", "procedure_number", "VARCHAR(100)"),
+    ("ndt_records", "acceptance_standard", "VARCHAR(100)"),
+    ("ndt_records", "technique", "VARCHAR(80)"),
+    ("ndt_records", "extent_pct", "FLOAT"),
+    ("ndt_records", "indication", "TEXT"),
+    ("ndt_records", "film_density", "FLOAT"),
+    ("test_packages", "design_pressure_barg", "FLOAT"),
+    ("test_packages", "isolation_boundary", "TEXT"),
+    ("test_packages", "pid_limits", "VARCHAR(200)"),
 )
 
 
@@ -139,6 +246,9 @@ class DatabaseManager:
             )
             self.SessionLocal = self._session_factory
 
+            logger.info("Applying industry column renames...")
+            self._apply_column_renames()
+
             logger.info("Creating all tables...")
             Base.metadata.create_all(self._engine)
             self._apply_schema_patches()
@@ -162,11 +272,69 @@ class DatabaseManager:
         if not self._initialized:
             self.initialize()
 
+    def _quote_ident(self, name: str) -> str:
+        return '"' + name.replace('"', '""') + '"'
+
+    def _apply_column_renames(self) -> None:
+        """Rename legacy columns to industry-standard names on existing databases."""
+        if self._engine is None:
+            return
+        inspector = inspect(self._engine)
+        for table, old, new in _COLUMN_RENAMES:
+            inspector.clear_cache()
+            tables = set(inspector.get_table_names())
+            if table not in tables:
+                continue
+            columns = {col["name"]: col for col in inspector.get_columns(table)}
+            if old in columns and new not in columns:
+                rename_sql = (
+                    f"ALTER TABLE {self._quote_ident(table)} "
+                    f"RENAME COLUMN {self._quote_ident(old)} TO {self._quote_ident(new)}"
+                )
+                try:
+                    with self._engine.begin() as conn:
+                        conn.execute(text(rename_sql))
+                    logger.info("Renamed column %s.%s -> %s", table, old, new)
+                except Exception:
+                    logger.warning(
+                        "RENAME COLUMN failed for %s.%s; copying into %s instead.",
+                        table, old, new, exc_info=True,
+                    )
+                    self._copy_column(table, old, new, columns[old])
+            elif old in columns and new in columns:
+                self._copy_column(table, old, new, columns[old])
+
+    def _copy_column(self, table: str, old: str, new: str, old_meta: dict[str, Any]) -> None:
+        """Add `new` if needed and copy values from `old` where `new` is null."""
+        if self._engine is None:
+            return
+        inspector = inspect(self._engine)
+        inspector.clear_cache()
+        existing = {col["name"] for col in inspector.get_columns(table)}
+        if new not in existing:
+            ddl_type = str(old_meta.get("type") or "TEXT")
+            add_sql = (
+                f"ALTER TABLE {self._quote_ident(table)} "
+                f"ADD COLUMN {self._quote_ident(new)} {ddl_type}"
+            )
+            with self._engine.begin() as conn:
+                conn.execute(text(add_sql))
+            logger.info("Added column %s.%s for legacy copy from %s", table, new, old)
+        copy_sql = (
+            f"UPDATE {self._quote_ident(table)} "
+            f"SET {self._quote_ident(new)} = {self._quote_ident(old)} "
+            f"WHERE {self._quote_ident(new)} IS NULL "
+            f"AND {self._quote_ident(old)} IS NOT NULL"
+        )
+        with self._engine.begin() as conn:
+            conn.execute(text(copy_sql))
+
     def _apply_schema_patches(self) -> None:
         """Add columns introduced after the original SQLite file was created."""
         if self._engine is None:
             return
         inspector = inspect(self._engine)
+        inspector.clear_cache()
         tables = set(inspector.get_table_names())
         for table, column, ddl in _SCHEMA_PATCHES:
             if table not in tables:
@@ -176,7 +344,13 @@ class DatabaseManager:
                 continue
             logger.info("Applying schema patch: %s.%s", table, column)
             with self._engine.begin() as conn:
-                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}"))
+                conn.execute(
+                    text(
+                        f"ALTER TABLE {self._quote_ident(table)} "
+                        f"ADD COLUMN {self._quote_ident(column)} {ddl}"
+                    )
+                )
+            inspector.clear_cache()
 
     # ──────────────────────────────
     # Session Management

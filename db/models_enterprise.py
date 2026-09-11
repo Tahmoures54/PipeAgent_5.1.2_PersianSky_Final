@@ -40,7 +40,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, synonym
 
 # Implementation note.
 from db.models import (
@@ -169,9 +169,10 @@ class WeldingTelemetry(Base, CreatedOnlyMixin, ReprMixin):
     project_id = Column(
         Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True,
     )
-    weld_id_fk = Column(
+    weld_id = Column(
         Integer, ForeignKey("welds.id", ondelete="SET NULL"), nullable=True, index=True,
     )
+    weld_id_fk = synonym("weld_id")
     machine_id = Column(String(120), nullable=False, index=True)
     operator_id = Column(String(100), index=True)
     process = Column(String(50), index=True)  # GTAW, SMAW, FCAW, GMAW
