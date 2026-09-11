@@ -52,6 +52,7 @@ class DatabaseConnectionDialog(QDialog):
 
         layout = QVBoxLayout(self)
         layout.setSpacing(10)
+        layout.setSizeConstraint(QVBoxLayout.SizeConstraint.SetFixedSize)
 
         intro = QLabel(
             "SQLite is for one workstation. Several users on one project need a "
@@ -129,6 +130,18 @@ class DatabaseConnectionDialog(QDialog):
         server_form.addRow("", self.trust_cert)
         layout.addWidget(server_box)
         self._server_box = server_box
+        self._mssql_only = [
+            widget
+            for field in (
+                self.instance,
+                self.windows_auth,
+                self.driver,
+                self.encrypt,
+                self.trust_cert,
+            )
+            for widget in (server_form.labelForField(field), field)
+            if widget is not None
+        ]
 
         hint = QLabel(
             "Create an empty database on the server first (PipeAgent). "
@@ -182,16 +195,15 @@ class DatabaseConnectionDialog(QDialog):
         engine = self.engine.currentData()
         self._sqlite_box.setVisible(engine == ENGINE_SQLITE)
         self._server_box.setVisible(engine != ENGINE_SQLITE)
-        self.instance.setEnabled(engine == ENGINE_MSSQL)
-        self.windows_auth.setEnabled(engine == ENGINE_MSSQL)
-        self.driver.setEnabled(engine == ENGINE_MSSQL)
-        self.encrypt.setEnabled(engine == ENGINE_MSSQL)
-        self.trust_cert.setEnabled(engine == ENGINE_MSSQL)
+        mssql = engine == ENGINE_MSSQL
+        for widget in self._mssql_only:
+            widget.setVisible(mssql)
         if engine == ENGINE_POSTGRESQL and self.port.value() == 0:
             self.port.setValue(5432)
         if engine == ENGINE_MSSQL and self.port.value() == 5432:
             self.port.setValue(0)
         self._sync_auth_fields()
+        self.adjustSize()
 
     def _sync_auth_fields(self) -> None:
         sql_auth = not (
