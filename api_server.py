@@ -400,6 +400,86 @@ def create_app(database: Optional[DatabaseManager] = None) -> FastAPI:
         )
         return IFCAdapter().inventory(str(_safe_ifc_path(path)))
 
+    @application.get("/api/v1/projects/{project_id}/compliance/nde-coverage")
+    def nde_coverage(
+        project_id: int,
+        request: Request,
+        database: DatabaseManager = Depends(_get_db),
+        authorization: str | None = Header(None),
+        x_api_key: str | None = Header(None),
+    ):
+        _authorize(
+            "quality:read",
+            project_id=project_id,
+            authorization=authorization,
+            x_api_key=x_api_key,
+            database=database,
+            client_ip=request.client.host if request.client else None,
+        )
+        from services.code_compliance import CodeComplianceService
+        return CodeComplianceService(database).project_coverage(project_id)
+
+    @application.get("/api/v1/projects/{project_id}/compliance/nde-lots")
+    def nde_lots(
+        project_id: int,
+        request: Request,
+        database: DatabaseManager = Depends(_get_db),
+        authorization: str | None = Header(None),
+        x_api_key: str | None = Header(None),
+    ):
+        _authorize(
+            "quality:read",
+            project_id=project_id,
+            authorization=authorization,
+            x_api_key=x_api_key,
+            database=database,
+            client_ip=request.client.host if request.client else None,
+        )
+        from services.code_compliance import CodeComplianceService
+        return CodeComplianceService(database).nde_lots(project_id)
+
+    @application.get("/api/v1/projects/{project_id}/compliance/execution-brief")
+    def execution_brief(
+        project_id: int,
+        request: Request,
+        database: DatabaseManager = Depends(_get_db),
+        authorization: str | None = Header(None),
+        x_api_key: str | None = Header(None),
+    ):
+        _authorize(
+            "execution:read",
+            project_id=project_id,
+            authorization=authorization,
+            x_api_key=x_api_key,
+            database=database,
+            client_ip=request.client.host if request.client else None,
+        )
+        from services.code_compliance import CodeComplianceService
+        return CodeComplianceService(database).execution_brief(project_id)
+
+    @application.get("/api/v1/projects/{project_id}/test-packages/{package_id}/hydro-clearance")
+    def hydro_clearance(
+        project_id: int,
+        package_id: int,
+        request: Request,
+        database: DatabaseManager = Depends(_get_db),
+        authorization: str | None = Header(None),
+        x_api_key: str | None = Header(None),
+    ):
+        _authorize(
+            "quality:read",
+            project_id=project_id,
+            authorization=authorization,
+            x_api_key=x_api_key,
+            database=database,
+            client_ip=request.client.host if request.client else None,
+        )
+        from services.code_compliance import CodeComplianceService
+        report = CodeComplianceService(database).hydrotest_clearance(package_id)
+        if report.get("package_id") and report["package_id"] != package_id:
+            raise HTTPException(status_code=404, detail="Test package not found")
+        return report
+
     return application
 
 

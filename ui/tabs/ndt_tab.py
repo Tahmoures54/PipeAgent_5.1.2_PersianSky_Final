@@ -432,8 +432,9 @@ class NDTTab(QWidget):
         self.kpi_rate = NDTKPICard("NDT Pass Rate", "📈", "#059669")
         self.kpi_failed = NDTKPICard("Defects / Repairs", "❌", "#ef4444")
         self.kpi_pending = NDTKPICard("Pending Evaluation", "⏳", "#f59e0b")
+        self.kpi_coverage = NDTKPICard("NDE Coverage Gaps", "📐", "#7c3aed")
 
-        for k in [self.kpi_total, self.kpi_passed, self.kpi_rate, self.kpi_failed, self.kpi_pending]:
+        for k in [self.kpi_total, self.kpi_passed, self.kpi_rate, self.kpi_failed, self.kpi_pending, self.kpi_coverage]:
             kpi_lay.addWidget(k)
         root.addLayout(kpi_lay)
 
@@ -461,6 +462,11 @@ class NDTTab(QWidget):
         self.cmb_filter_result.addItems(["Pass", "Fail", "Pending", "NR", "Concession"])
         self.cmb_filter_result.currentIndexChanged.connect(self._apply_filters)
         filter_lay.addWidget(self.cmb_filter_result)
+
+        btn_lot = QPushButton("📐 NDE Lot (B31.3)")
+        btn_lot.setObjectName("secondaryBtn")
+        btn_lot.clicked.connect(self._show_nde_lot)
+        filter_lay.addWidget(btn_lot)
 
         btn_add = QPushButton("➕ Record NDT Result")
         btn_add.setObjectName("primaryBtn")
@@ -528,6 +534,7 @@ class NDTTab(QWidget):
 
         if not self.project_id:
             self._update_kpis(0, 0, 0, 0)
+            self.kpi_coverage.set_value("—")
             return
 
         try:
@@ -568,6 +575,7 @@ class NDTTab(QWidget):
 
                 self._update_kpis(len(records), pass_cnt, fail_cnt, pend_cnt)
                 self._apply_filters()
+                self._refresh_coverage_kpi()
 
         except Exception as e:
             logger.exception("NDT refresh failed")
@@ -580,6 +588,47 @@ class NDTTab(QWidget):
         self.kpi_rate.set_value(f"{rate:.1f}%", highlight="green" if rate >= 95.0 else ("red" if rate < 85.0 and total > 0 else None))
         self.kpi_failed.set_value(str(failed), highlight="red" if failed > 0 else "green")
         self.kpi_pending.set_value(str(pending), highlight="amber" if pending > 0 else None)
+
+    def _refresh_coverage_kpi(self):
+        if not self.project_id:
+            self.kpi_coverage.set_value("—")
+            return
+        try:
+            from services.code_compliance import CodeComplianceService
+            coverage = CodeComplianceService(self.db).project_coverage(self.project_id)
+            gaps = len(coverage.get("deficit_lines") or [])
+            self.kpi_coverage.set_value(str(gaps), highlight="red" if gaps else "green")
+        except Exception:
+            logger.exception("NDE coverage KPI failed")
+            self.kpi_coverage.set_value("—")
+
+    def _show_nde_lot(self):
+        if not self.project_id:
+            QMessageBox.information(self, "NDE Lot", "Select a project first.")
+            return
+        try:
+            from services.code_compliance import CodeComplianceService
+            lots = CodeComplianceService(self.db).nde_lots(self.project_id)
+        except Exception as exc:
+            QMessageBox.warning(self, "NDE Lot", f"Could not build the B31.3 lot list:\n{exc}")
+            return
+        if not lots.get("selected"):
+            QMessageBox.information(
+                self,
+                "NDE Lot",
+                "No additional joints are required. Line-list examination percents are currently met.",
+            )
+            return
+        lines = [
+            f"{row['weld_number']}  {row['line_number'] or ''}  {row['method']}  {row['reason']}"
+            for row in lots["selected"][:40]
+        ]
+        extra = "" if lots["selected_count"] <= 40 else f"\n… {lots['selected_count'] - 40} more"
+        QMessageBox.information(
+            self,
+            "B31.3 NDE Lot",
+            lots.get("rule", "") + "\n\n" + "\n".join(lines) + extra,
+        )
 
     def _apply_filters(self):
         query = self.txt_search.text().strip().lower()

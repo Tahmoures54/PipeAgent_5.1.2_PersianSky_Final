@@ -390,6 +390,20 @@ class ReportingService:
                 f"{drafts_w} welding drafts and {drafts_f} fit-up drafts are pending.",
                 "Review and approve valid drafts so the official register remains current.", "DOCUMENT CONTROL")
 
+        try:
+            from services.code_compliance import CodeComplianceService
+            brief = CodeComplianceService(self.db).execution_brief(project_id)
+            for action in brief.get("next_actions") or []:
+                add(
+                    "High" if action.get("priority", 2) == 1 else "Medium",
+                    action["title"],
+                    action["evidence"],
+                    action["recommendation"],
+                    action.get("category", "EXECUTION"),
+                )
+        except Exception:
+            logger.exception("Failed to attach code-compliance hints")
+
         # If welded joints exist but no NDT records are present, surface the operational queue explicitly.
         try:
             with self.db.session_scope() as session:
@@ -405,7 +419,8 @@ class ReportingService:
                     "severity": "High",
                     "title": "NDT backlog needs attention",
                     "evidence": f"{welded_count - ndt_count} welded joint(s) have no NDT record.",
-                    "action": "Prioritize NDT requests before the queue constrains downstream acceptance.",
+                    "recommendation": "Prioritize NDT requests before the queue constrains downstream acceptance.",
+                    "category": "QUALITY",
                 })
         except Exception:
             logger.exception("Failed to calculate NDT backlog hint")

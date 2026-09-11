@@ -591,6 +591,8 @@ class NDTRecord(Base, CreatedOnlyMixin, ReprMixin):
     extent_pct = Column(Float)
     indication = Column(Text)
     film_density = Column(Float)
+    is_penalty = Column(Boolean, default=False, index=True)
+    penalty_source_weld_id = Column(Integer, nullable=True, index=True)
     remarks = Column(Text)
 
     weld = relationship("Weld", back_populates="ndt_records")

@@ -140,9 +140,8 @@ class NDTService:
             existing_record = (
                 session.query(NDTRecord)
                 .filter(
-                    NDTRecord.weld_id_fk == weld_pk,
+                    NDTRecord.weld_id == weld_pk,
                     NDTRecord.ndt_method == method_str,
-                    getattr(NDTRecord, "repair_cycle", 0) == repair_cycle_no,
                 )
                 .first()
             )
@@ -152,26 +151,27 @@ class NDTService:
                 existing_record.inspector_id = inspector_id.strip()
                 existing_record.result = verdict_str
                 existing_record.report_number = report_number.strip()
-                existing_record.defect_type = defect_str
-                existing_record.defect_location = defect_location_clock
+                existing_record.indication = defect_str
+                if film_density is not None:
+                    existing_record.film_density = film_density
+                existing_record.is_penalty = is_penalty
+                if original_rejected_weld_id:
+                    existing_record.penalty_source_weld_id = original_rejected_weld_id
                 existing_record.remarks = remarks.strip()
                 record_obj = existing_record
             else:
                 record_obj = NDTRecord(
-                    weld_id_fk=weld_pk,
-                    project_id=weld.project_id,
+                    weld_id=weld_pk,
                     ndt_method=method_str,
                     inspection_date=inspection_date or date.today(),
                     inspector_id=inspector_id.strip(),
                     result=verdict_str,
                     report_number=report_number.strip(),
-                    defect_type=defect_str,
-                    defect_location=defect_location_clock,
+                    indication=defect_str,
+                    film_density=film_density,
                     is_penalty=is_penalty,
-                    original_rejected_weld_id=original_rejected_weld_id,
-                    repair_cycle=repair_cycle_no,
+                    penalty_source_weld_id=original_rejected_weld_id,
                     remarks=remarks.strip(),
-                    created_at=datetime.utcnow(),
                 )
                 session.add(record_obj)
 
@@ -218,7 +218,7 @@ class NDTService:
             if not orig_ndt or orig_ndt.result != NDTVerdict.REJECTED.value:
                 raise PenaltyAllocationError(f"NDT Record #{rejected_ndt_id} must exist and have 'Fail' verdict.")
 
-            orig_weld = session.get(Weld, orig_ndt.weld_id_fk)
+            orig_weld = session.get(Weld, orig_ndt.weld_id)
             if not orig_weld:
                 raise PenaltyAllocationError("Original rejected weld record not found.")
 
@@ -246,14 +246,12 @@ class NDTService:
             created_penalties = []
             for cw in candidate_welds:
                 penalty_record = NDTRecord(
-                    weld_id_fk=cw.id,
-                    project_id=project_id,
+                    weld_id=cw.id,
                     ndt_method=orig_ndt.ndt_method,
                     result=NDTVerdict.PENDING.value,
                     is_penalty=True,
-                    original_rejected_weld_id=orig_weld.id,
+                    penalty_source_weld_id=orig_weld.id,
                     remarks=f"Penalty assigned by {assigned_by} due to rejected Weld #{orig_weld.id} (Welder: {target_welder})",
-                    created_at=datetime.utcnow(),
                 )
                 session.add(penalty_record)
                 cw.status = "NDT_REQUESTED"
@@ -271,79 +269,11 @@ class NDTService:
     # Implementation note.
 
     def evaluate_line_ndt_coverage(self, project_id: int, line_number: str) -> Dict[str, Any]:
-        """
-        بررسی انطباق درصد بازرسی واقعی انجام‌شده با درصد الزامی مشخص‌شده در Line List:
-        مثال: اگر لاین نیازمند ۱۰٪ RT باشد، آیا حداقل ۱۰٪ کل اینچ-قطر یا سرجوش‌ها ترخیص شده است؟
-        """
-        clean_line_no = line_number.strip().upper()
+        """B31.3 examination extent vs line-list RT/UT/PT/MT percents."""
+        from services.code_compliance import line_coverage
 
         with self.db.session_scope() as session:
-            # Implementation note.
-            line_item = (
-                session.query(LineListItem)
-                .filter(
-                    LineListItem.project_id == project_id,
-                    LineListItem.line_number == clean_line_no,
-                )
-                .first()
-            )
-            required_rt_pct = float(getattr(line_item, "ndt_percent_rt", 5.0) or 5.0) if line_item else 5.0
-
-            # Implementation note.
-            welds = session.query(Weld).filter(
-                Weld.project_id == project_id,
-                Weld.line_number == clean_line_no,
-            ).all()
-
-            total_welds = len(welds)
-            total_dia_inch = sum(float(getattr(w, "dia_inch", 1.0) or 1.0) for w in welds)
-
-            if total_welds == 0:
-                return {
-                    "line_number": clean_line_no,
-                    "total_welds": 0,
-                    "coverage_met": True,
-                    "message": "No welds registered on this line.",
-                }
-
-            weld_ids = [w.id for w in welds]
-
-            # Implementation note.
-            cleared_rt_welds = (
-                session.query(func.distinct(NDTRecord.weld_id_fk))
-                .filter(
-                    NDTRecord.weld_id_fk.in_(weld_ids),
-                    NDTRecord.ndt_method == NDTMethod.RT.value,
-                    NDTRecord.result == NDTVerdict.ACCEPTED.value,
-                )
-                .all()
-            )
-            cleared_weld_ids = {r[0] for r in cleared_rt_welds}
-            cleared_count = len(cleared_weld_ids)
-
-            cleared_dia_inch = sum(
-                float(getattr(w, "dia_inch", 1.0) or 1.0)
-                for w in welds if w.id in cleared_weld_ids
-            )
-
-            actual_joint_pct = round((cleared_count / total_welds * 100), 2)
-            actual_dia_inch_pct = round((cleared_dia_inch / total_dia_inch * 100), 2) if total_dia_inch > 0 else 0.0
-
-            coverage_satisfied = actual_joint_pct >= required_rt_pct
-
-            return {
-                "project_id": project_id,
-                "line_number": clean_line_no,
-                "total_welds_count": total_welds,
-                "total_dia_inch": round(total_dia_inch, 1),
-                "rt_cleared_welds_count": cleared_count,
-                "rt_cleared_dia_inch": round(cleared_dia_inch, 1),
-                "required_rt_percent": required_rt_pct,
-                "actual_rt_joint_percent": actual_joint_pct,
-                "actual_rt_dia_inch_percent": actual_dia_inch_pct,
-                "is_coverage_satisfied": coverage_satisfied,
-                "status": "COMPLIANT" if coverage_satisfied else "DEFICIT",
-            }
+            return line_coverage(session, project_id, line_number)
 
     # Implementation note.
 
@@ -353,39 +283,39 @@ class NDTService:
         (حذف کامل گلوگاه حافظه RAM).
         """
         with self.db.session_scope() as session:
-            # Implementation note.
             stats = session.query(
                 func.count(NDTRecord.id).label("total_records"),
-                func.sum(case((NDTRecord.result == NDTVerdict.ACCEPTED.value, 1), else_=0)).label("pass_count"),
-                func.sum(case((NDTRecord.result == NDTVerdict.REJECTED.value, 1), else_=0)).label("fail_count"),
+                func.sum(case((NDTRecord.result.in_(["Pass", "Accepted"]), 1), else_=0)).label("pass_count"),
+                func.sum(case((NDTRecord.result.in_(["Fail", "Rejected"]), 1), else_=0)).label("fail_count"),
                 func.sum(case((NDTRecord.result == NDTVerdict.PENDING.value, 1), else_=0)).label("pending_count"),
                 func.sum(case((NDTRecord.is_penalty == True, 1), else_=0)).label("penalty_count"),
-            ).filter(NDTRecord.project_id == project_id).first()
+            ).join(Weld, NDTRecord.weld_id == Weld.id).filter(Weld.project_id == project_id).first()
 
-            # Implementation note.
             method_breakdown = (
                 session.query(
                     NDTRecord.ndt_method,
                     func.count(NDTRecord.id).label("total"),
-                    func.sum(case((NDTRecord.result == NDTVerdict.ACCEPTED.value, 1), else_=0)).label("passed"),
-                    func.sum(case((NDTRecord.result == NDTVerdict.REJECTED.value, 1), else_=0)).label("failed"),
+                    func.sum(case((NDTRecord.result.in_(["Pass", "Accepted"]), 1), else_=0)).label("passed"),
+                    func.sum(case((NDTRecord.result.in_(["Fail", "Rejected"]), 1), else_=0)).label("failed"),
                 )
-                .filter(NDTRecord.project_id == project_id)
+                .join(Weld, NDTRecord.weld_id == Weld.id)
+                .filter(Weld.project_id == project_id)
                 .group_by(NDTRecord.ndt_method)
                 .all()
             )
 
-            # Implementation note.
             defect_stats = (
                 session.query(
-                    NDTRecord.defect_type,
+                    NDTRecord.indication,
                     func.count(NDTRecord.id).label("count"),
                 )
+                .join(Weld, NDTRecord.weld_id == Weld.id)
                 .filter(
-                    NDTRecord.project_id == project_id,
-                    NDTRecord.defect_type.isnot(None),
+                    Weld.project_id == project_id,
+                    NDTRecord.indication.isnot(None),
+                    NDTRecord.indication != "",
                 )
-                .group_by(NDTRecord.defect_type)
+                .group_by(NDTRecord.indication)
                 .order_by(desc("count"))
                 .limit(6)
                 .all()
@@ -417,7 +347,7 @@ class NDTService:
                     }
                     for row in method_breakdown
                 },
-                "top_recurring_defects": {row.defect_type: row.count for row in defect_stats},
+                "top_recurring_defects": {row.indication: row.count for row in defect_stats},
             }
 
     # Implementation note.

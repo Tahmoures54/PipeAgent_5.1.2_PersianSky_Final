@@ -139,6 +139,8 @@ _SCHEMA_PATCHES = (
     ("ndt_records", "extent_pct", "FLOAT"),
     ("ndt_records", "indication", "TEXT"),
     ("ndt_records", "film_density", "FLOAT"),
+    ("ndt_records", "is_penalty", "BOOLEAN DEFAULT 0"),
+    ("ndt_records", "penalty_source_weld_id", "INTEGER"),
     ("test_packages", "design_pressure_barg", "FLOAT"),
     ("test_packages", "isolation_boundary", "TEXT"),
     ("test_packages", "pid_limits", "VARCHAR(200)"),
