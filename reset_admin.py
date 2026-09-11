@@ -34,7 +34,6 @@ def reset_password(db, username, new_password):
             print(f"User '{username}' not found.")
             return False
         user.password_hash = hash_password(new_password)
-        session.commit()
         print(f"Password for user '{username}' has been reset.")
         return True
 
@@ -53,7 +52,6 @@ def create_admin(db, username, password):
             is_active=True
         )
         session.add(admin)
-        session.commit()
         print(f"Admin user '{username}' created successfully.")
         return True
 

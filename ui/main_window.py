@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# ui/main_window.py – PipeAgent 5.2.3 (Fixed & Enhanced)
+# ui/main_window.py – PipeAgent 5.2.4 (Fixed & Enhanced)
 """
 PipeAgent — Piping Execution Operating System
 ══════════════════════════════════════════════

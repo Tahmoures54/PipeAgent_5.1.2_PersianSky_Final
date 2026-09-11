@@ -101,6 +101,8 @@ class User(Base, TimestampMixin, ReprMixin):
     full_name = Column(String(150), default="")
     company = Column(String(150), default="")
     phone = Column(String(50), default="")
+    email = Column(String(255), nullable=True, index=True)
+    auth_provider = Column(String(40), default="local")
     last_login = Column(DateTime, nullable=True)
 
     audit_logs = relationship("AuditLog", back_populates="user", lazy="dynamic")
@@ -130,6 +132,8 @@ class Project(Base, TimestampMixin, ReprMixin, SoftDeleteMixin):
     client = Column(String(200))
     contractor = Column(String(200))
     standard = Column(String(100))
+    status = Column(String(40), default="ACTIVE", nullable=False, index=True)
+    project_type = Column(String(50))
 
     areas = relationship("Area", back_populates="project", cascade="all, delete-orphan")
     line_items = relationship("LineListItem", back_populates="project", cascade="all, delete-orphan")
