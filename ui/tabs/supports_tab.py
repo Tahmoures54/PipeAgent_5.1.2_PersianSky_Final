@@ -10,14 +10,14 @@ from datetime import timezone
 from pathlib import Path
 from typing import Optional
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QDate
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel,
     QPushButton, QTableWidget, QTableWidgetItem, QHeaderView,
     QMessageBox, QDialog, QFormLayout, QLineEdit, QComboBox,
     QDialogButtonBox, QTextEdit, QFrame, QFileDialog,
     QApplication, QMenu, QAbstractItemView, QGroupBox,
-    QDoubleSpinBox,
+    QDoubleSpinBox, QDateEdit, QScrollArea,
 )
 from PyQt6.QtGui import QColor, QFont, QBrush, QCursor, QAction
 
@@ -25,6 +25,19 @@ from db.manager import DatabaseManager
 from db.models import Project, PipeSupport
 from security.session import SessionManager
 from services.license import increment_usage
+from services.record_fields import apply_fields
+
+SUPPORT_REGISTER_FIELDS = (
+    "revision", "install_location", "sheet_number", "service", "size_nps",
+    "base_metal", "joint_number", "weld_status", "fabrication_weight_kg",
+    "erection_weight_kg", "type_2", "fab_fitup_report_number", "fab_fitup_date",
+    "fab_fitup_result", "fab_fitup_contractor", "fab_weld_report_number",
+    "fab_weld_date", "fab_weld_result", "fab_weld_contractor",
+    "er_fitup_report_number", "er_fitup_date", "er_fitup_result",
+    "er_fitup_contractor", "er_weld_report_number", "er_weld_date",
+    "er_weld_result", "er_weld_contractor", "welder_name",
+    "pt_report_number", "pt_date", "pt_result", "test_package_number",
+)
 
 # ── Support constants (fallback if config missing) ────────────
 try:
@@ -256,6 +269,30 @@ class SupportDialog(QDialog):
         )
         self.remarks_edit.setMaximumHeight(65)
 
+        self.revision = QLineEdit()
+        self.install_loc = QComboBox()
+        self.install_loc.addItems(["", "AG", "UG"])
+        self.sheet = QLineEdit()
+        self.service = QLineEdit()
+        self.size_nps = QLineEdit()
+        self.base_metal = QLineEdit()
+        self.joint_no = QLineEdit()
+        self.weld_status = QLineEdit()
+        self.fab_wt = QDoubleSpinBox()
+        self.fab_wt.setRange(0, 50000)
+        self.fab_wt.setSuffix(" kg")
+        self.er_wt = QDoubleSpinBox()
+        self.er_wt.setRange(0, 50000)
+        self.er_wt.setSuffix(" kg")
+        self.type2 = QLineEdit()
+        self.fab_fitup_rpt = QLineEdit()
+        self.fab_weld_rpt = QLineEdit()
+        self.er_fitup_rpt = QLineEdit()
+        self.er_weld_rpt = QLineEdit()
+        self.welder_name = QLineEdit()
+        self.pt_rpt = QLineEdit()
+        self.test_pack = QLineEdit()
+
         form.addRow("Project *:", self.project_combo)
         form.addRow("Support Tag Identifier *:", self.tag_edit)
         form.addRow("Support Functional Type *:", self.stype_combo)
@@ -266,6 +303,24 @@ class SupportDialog(QDialog):
         form.addRow("Estimated Steel Weight:", self.weight_edit)
         form.addRow("Current Lifecycle Status:", self.status_combo)
         form.addRow("Engineering Remarks:", self.remarks_edit)
+        form.addRow("Revision:", self.revision)
+        form.addRow("AG / UG:", self.install_loc)
+        form.addRow("Sheet:", self.sheet)
+        form.addRow("Service:", self.service)
+        form.addRow("Size (NPS):", self.size_nps)
+        form.addRow("Base Metal:", self.base_metal)
+        form.addRow("Joint No:", self.joint_no)
+        form.addRow("Weld Status:", self.weld_status)
+        form.addRow("Type 2:", self.type2)
+        form.addRow("Fab Weight:", self.fab_wt)
+        form.addRow("Erection Weight:", self.er_wt)
+        form.addRow("Fab Fit-up Report:", self.fab_fitup_rpt)
+        form.addRow("Fab Weld Report:", self.fab_weld_rpt)
+        form.addRow("Erection Fit-up Report:", self.er_fitup_rpt)
+        form.addRow("Erection Weld Report:", self.er_weld_rpt)
+        form.addRow("Welder Name:", self.welder_name)
+        form.addRow("PT Report:", self.pt_rpt)
+        form.addRow("Test Package No:", self.test_pack)
         layout.addLayout(form)
 
         if self.is_edit and existing_data:
@@ -299,6 +354,24 @@ class SupportDialog(QDialog):
             self.remarks_edit.setPlainText(
                 existing_data.get("remarks", "")
             )
+            self.revision.setText(existing_data.get("revision", ""))
+            self.install_loc.setCurrentText(existing_data.get("install_location") or "")
+            self.sheet.setText(existing_data.get("sheet_number", ""))
+            self.service.setText(existing_data.get("service", ""))
+            self.size_nps.setText(existing_data.get("size_nps", ""))
+            self.base_metal.setText(existing_data.get("base_metal", ""))
+            self.joint_no.setText(existing_data.get("joint_number", ""))
+            self.weld_status.setText(existing_data.get("weld_status", ""))
+            self.type2.setText(existing_data.get("type_2", ""))
+            self.fab_wt.setValue(float(existing_data.get("fabrication_weight_kg") or 0))
+            self.er_wt.setValue(float(existing_data.get("erection_weight_kg") or 0))
+            self.fab_fitup_rpt.setText(existing_data.get("fab_fitup_report_number", ""))
+            self.fab_weld_rpt.setText(existing_data.get("fab_weld_report_number", ""))
+            self.er_fitup_rpt.setText(existing_data.get("er_fitup_report_number", ""))
+            self.er_weld_rpt.setText(existing_data.get("er_weld_report_number", ""))
+            self.welder_name.setText(existing_data.get("welder_name", ""))
+            self.pt_rpt.setText(existing_data.get("pt_report_number", ""))
+            self.test_pack.setText(existing_data.get("test_package_number", ""))
 
         btns = QHBoxLayout()
         btn_save = QPushButton("Save Support")
@@ -340,6 +413,24 @@ class SupportDialog(QDialog):
             "location_desc": self.location_edit.text().strip(),
             "status": self.status_combo.currentText(),
             "remarks": self.remarks_edit.toPlainText().strip(),
+            "revision": self.revision.text().strip(),
+            "install_location": self.install_loc.currentText().strip() or None,
+            "sheet_number": self.sheet.text().strip(),
+            "service": self.service.text().strip(),
+            "size_nps": self.size_nps.text().strip(),
+            "base_metal": self.base_metal.text().strip(),
+            "joint_number": self.joint_no.text().strip(),
+            "weld_status": self.weld_status.text().strip(),
+            "type_2": self.type2.text().strip(),
+            "fabrication_weight_kg": self.fab_wt.value() or None,
+            "erection_weight_kg": self.er_wt.value() or None,
+            "fab_fitup_report_number": self.fab_fitup_rpt.text().strip(),
+            "fab_weld_report_number": self.fab_weld_rpt.text().strip(),
+            "er_fitup_report_number": self.er_fitup_rpt.text().strip(),
+            "er_weld_report_number": self.er_weld_rpt.text().strip(),
+            "welder_name": self.welder_name.text().strip(),
+            "pt_report_number": self.pt_rpt.text().strip(),
+            "test_package_number": self.test_pack.text().strip(),
         }
 
 
@@ -566,11 +657,12 @@ class SupportsTab(QWidget):
         layout.addWidget(filter_card)
 
         # Main table
-        self.table = QTableWidget(0, 9)
+        self.table = QTableWidget(0, 13)
         self.table.setHorizontalHeaderLabels([
             "ID", "Support Tag No", "Support Type", "Piping Line No",
-            "ISO DWG Ref", "Detail DWG", "Lifecycle Status",
-            "Plant Location / Elev", "Remarks",
+            "ISO DWG Ref", "AG / UG", "Weld Status", "Test Package",
+            "Fab Fit-up Report", "Erection Weld Report",
+            "Lifecycle Status", "Plant Location / Elev", "Remarks",
         ])
         self.table.setColumnHidden(0, True)
         self._setup_table_style(self.table)
@@ -735,6 +827,24 @@ class SupportsTab(QWidget):
                         "installed_date": (
                             getattr(sp, "installed_date", "") or ""
                         ),
+                        "revision": getattr(sp, "revision", "") or "",
+                        "install_location": getattr(sp, "install_location", "") or "",
+                        "sheet_number": getattr(sp, "sheet_number", "") or "",
+                        "service": getattr(sp, "service", "") or "",
+                        "size_nps": getattr(sp, "size_nps", "") or "",
+                        "base_metal": getattr(sp, "base_metal", "") or "",
+                        "joint_number": getattr(sp, "joint_number", "") or "",
+                        "weld_status": getattr(sp, "weld_status", "") or "",
+                        "type_2": getattr(sp, "type_2", "") or "",
+                        "fabrication_weight_kg": getattr(sp, "fabrication_weight_kg", None),
+                        "erection_weight_kg": getattr(sp, "erection_weight_kg", None),
+                        "fab_fitup_report_number": getattr(sp, "fab_fitup_report_number", "") or "",
+                        "fab_weld_report_number": getattr(sp, "fab_weld_report_number", "") or "",
+                        "er_fitup_report_number": getattr(sp, "er_fitup_report_number", "") or "",
+                        "er_weld_report_number": getattr(sp, "er_weld_report_number", "") or "",
+                        "welder_name": getattr(sp, "welder_name", "") or "",
+                        "pt_report_number": getattr(sp, "pt_report_number", "") or "",
+                        "test_package_number": getattr(sp, "test_package_number", "") or "",
                     })
 
                 self._update_kpis(
@@ -820,7 +930,19 @@ class SupportsTab(QWidget):
                 r, 4, QTableWidgetItem(sp["iso_number"])
             )
             self.table.setItem(
-                r, 5, QTableWidgetItem(sp["drawing_no"])
+                r, 5, QTableWidgetItem(sp.get("install_location") or "")
+            )
+            self.table.setItem(
+                r, 6, QTableWidgetItem(sp.get("weld_status") or "")
+            )
+            self.table.setItem(
+                r, 7, QTableWidgetItem(sp.get("test_package_number") or "")
+            )
+            self.table.setItem(
+                r, 8, QTableWidgetItem(sp.get("fab_fitup_report_number") or "")
+            )
+            self.table.setItem(
+                r, 9, QTableWidgetItem(sp.get("er_weld_report_number") or "")
             )
 
             st_item = QTableWidgetItem(sp["status"])
@@ -833,13 +955,13 @@ class SupportsTab(QWidget):
             f = st_item.font()
             f.setBold(True)
             st_item.setFont(f)
-            self.table.setItem(r, 6, st_item)
+            self.table.setItem(r, 10, st_item)
 
             self.table.setItem(
-                r, 7, QTableWidgetItem(sp["location_desc"])
+                r, 11, QTableWidgetItem(sp["location_desc"])
             )
             self.table.setItem(
-                r, 8, QTableWidgetItem(sp["remarks"])
+                r, 12, QTableWidgetItem(sp["remarks"])
             )
 
         self.table.setSortingEnabled(True)
@@ -896,7 +1018,7 @@ class SupportsTab(QWidget):
 
         try:
             with self.db.session_scope() as s:
-                s.add(PipeSupport(
+                rec = PipeSupport(
                     project_id=d["project_id"],
                     support_tag=d["support_tag"],
                     support_type=d["support_type"],
@@ -906,9 +1028,10 @@ class SupportsTab(QWidget):
                     location_desc=d["location_desc"],
                     status=d["status"],
                     remarks=d["remarks"],
-                    # ✅ FIXED: use _utcnow() helper
                     created_at=_utcnow(),
-                ))
+                )
+                apply_fields(rec, d, SUPPORT_REGISTER_FIELDS)
+                s.add(rec)
             self.refresh()
             QMessageBox.information(
                 self, "Success",
@@ -958,6 +1081,7 @@ class SupportsTab(QWidget):
                     sp.status = d["status"]
                     if hasattr(sp, "remarks"):
                         sp.remarks = d["remarks"]
+                    apply_fields(sp, d, SUPPORT_REGISTER_FIELDS)
                     if (d["status"] in ("Installed", "Accepted")
                             and not getattr(
                                 sp, "installed_date", None

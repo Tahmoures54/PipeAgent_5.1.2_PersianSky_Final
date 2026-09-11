@@ -45,6 +45,7 @@ from .procurement_tab            import ProcurementTab
 
 # ── Documents & data ────────────────────────────────────────────
 from .documents_tab              import DocumentsTab
+from .technical_query_tab        import TechnicalQueryTab
 from .data_exchange_tab          import DataExchangeTab
 from .smart_entry_tab            import SmartEntryTab
 from .mobile_field_tab           import MobileFieldTab
@@ -73,7 +74,7 @@ __all__ = [
     # Materials
     "ProcurementTab",
     # Documents / data
-    "DocumentsTab", "DataExchangeTab", "SmartEntryTab", "MobileFieldTab",
+    "DocumentsTab", "TechnicalQueryTab", "DataExchangeTab", "SmartEntryTab", "MobileFieldTab",
     # Intelligence
     "ReportsTab", "ExecutionIntelligenceTab", "ExecutionOSTab",
     "ControlTowerTab", "AIAssistantTab", "ValueAndPlansTab",

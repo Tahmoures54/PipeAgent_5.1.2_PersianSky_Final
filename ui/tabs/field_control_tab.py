@@ -36,6 +36,7 @@ from db.models import (
     FitupReportDraft, FitupReport, ProjectAction,
 )
 from security.session import SessionManager
+from services.module_access import SITE_ROLES, canonical_role
 from services.reporting_service import ReportingService
 
 logger = logging.getLogger(__name__)
@@ -1671,15 +1672,21 @@ class FieldControlTab(QWidget):
 
             _set_table_enhanced(
                 self.actions,
-                ["ID", "Project", "Action", "Entity", "Line",
+                ["ID", "Project", "Action", "Document Type", "Document No",
+                 "RT Report", "Work Front", "Result", "Line",
                  "Description", "Date", "User", "Status"],
                 [
-                    (a.id, a.project_id, a.action_type, a.entity_type,
+                    (a.id, a.project_id, a.action_type,
+                     getattr(a, "document_type", "") or "",
+                     getattr(a, "document_number", "") or "",
+                     getattr(a, "rt_report_number", "") or "",
+                     getattr(a, "work_front", "") or "",
+                     getattr(a, "result", "") or "",
                      a.line_number, a.description, a.action_date,
                      a.user_name, a.status)
                     for a in acts
                 ],
-                color_columns={8: "status"},
+                color_columns={12: "status"},
             )
         except Exception:
             logger.exception("Refresh actions failed")
@@ -1708,11 +1715,30 @@ class FieldControlTab(QWidget):
         desc = QTextEdit()
         desc.setMaximumHeight(100)
         contractor = QLineEdit()
+        doc_type = QLineEdit()
+        doc_no = QLineEdit()
+        rt_no = QLineEdit()
+        by1 = QLineEdit()
+        by2 = QLineEdit()
+        result = QLineEdit()
+        work_front = QLineEdit()
+        link = QLineEdit()
+        remarks = QTextEdit()
+        remarks.setMaximumHeight(70)
 
         f.addRow("Action Type", typ)
         f.addRow("Line No", line)
-        f.addRow("Contractor", contractor)
+        f.addRow("Contractor / Subcontractor", contractor)
+        f.addRow("Document Type", doc_type)
+        f.addRow("Document No", doc_no)
+        f.addRow("RT Report No", rt_no)
+        f.addRow("Action By 1", by1)
+        f.addRow("Action By 2", by2)
+        f.addRow("Result", result)
+        f.addRow("Work Front", work_front)
+        f.addRow("Link", link)
         f.addRow("Description", desc)
+        f.addRow("Remarks", remarks)
 
         b = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save
@@ -1733,8 +1759,19 @@ class FieldControlTab(QWidget):
                     action_type=typ.currentText(),
                     line_number=line.text().strip(),
                     contractor=contractor.text().strip(),
+                    subcontractor=contractor.text().strip(),
                     description=desc.toPlainText().strip(),
                     user_name=user,
+                    document_type=doc_type.text().strip(),
+                    document_number=doc_no.text().strip(),
+                    rt_report_number=rt_no.text().strip(),
+                    action_by_1=by1.text().strip(),
+                    action_by_2=by2.text().strip(),
+                    result=result.text().strip(),
+                    work_front=work_front.text().strip(),
+                    link_url=link.text().strip(),
+                    remarks=remarks.toPlainText().strip(),
+                    created_by=user,
                 ))
             self.refresh_actions()
             self._set_status("Action added")
@@ -1783,9 +1820,8 @@ class FieldControlTab(QWidget):
         company = QLineEdit()
         phone = QLineEdit()
         role = QComboBox()
-        role.addItems([
-            "admin", "engineer", "inspector", "welder", "viewer",
-        ])
+        for key, label in SITE_ROLES:
+            role.addItem(label, key)
 
         for lab, w in [
             ("Employee ID", eid), ("Full Name", name),
@@ -1824,7 +1860,7 @@ class FieldControlTab(QWidget):
                     full_name=name.text().strip(),
                     username=username.text().strip(),
                     password_hash=hash_password(password.text()),
-                    role=role.currentText(),
+                    role=role.currentData() or canonical_role(role.currentText()),
                     department=dept.text().strip(),
                     company=company.text().strip(),
                     phone=phone.text().strip(),

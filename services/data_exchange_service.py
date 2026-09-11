@@ -28,7 +28,7 @@ from db.models import (
     TestPackage, TestPackageWeld, TestRequest, Document, DocumentRevision,
     Transmittal, TransmittalItem, HandoverPackage, ProjectAction, WorkFront,
     WorkTeam, SiteMachine, WorkAssignment, FieldSyncEvent, FieldAttachment,
-    AIInsight, ProductivitySnapshot, TurnoverDossier, User,
+    AIInsight, ProductivitySnapshot, TurnoverDossier, User, Company, TechnicalQuery,
 )
 
 logger = logging.getLogger(__name__)
@@ -48,26 +48,120 @@ MODEL_MAP = {
     "Work Assignments": WorkAssignment, "Field Sync Events": FieldSyncEvent,
     "Field Attachments": FieldAttachment, "AI Insights": AIInsight,
     "Productivity Snapshots": ProductivitySnapshot, "Turnover Dossiers": TurnoverDossier,
-    "Users": User,
+    "Users": User, "Companies": Company, "Technical Queries": TechnicalQuery,
 }
 
-# Implementation note.
+# Implementation note. Keys are matched after _norm() (case, spaces, punctuation).
 ALIASES = {
     "project code": "project_code", "project": "project_code", "project id": "project_id",
-    "line no": "line_number", "line": "line_number", "iso no": "iso_number", "iso": "iso_number",
-    "spool no": "spool_number", "spool": "spool_number", "weld no": "weld_number",
-    "joint no": "weld_number", "weld id": "weld_number", "welder": "welder_name",
-    "wps": "wps_number", "date": "work_date", "qty": "quantity", "tonnage": "weight_kg",
+    "line no": "line_number", "lineno": "line_number", "line": "line_number",
+    "iso no": "iso_number", "isono": "iso_number", "iso": "iso_number",
+    "spool no": "spool_number", "spoolnumber": "spool_number", "spool": "spool_number",
+    "weld no": "weld_number", "joint no": "weld_number", "jointnu": "weld_number",
+    "weld id": "weld_number", "welder": "welder_name",
+    "wps": "wps_number", "wpsid": "wps_number", "requestno": "request_number",
+    "date": "work_date", "qty": "quantity", "tonnage": "weight_kg",
+    "sheetno": "sheet_number", "sheetrev": "sheet_revision", "revstatus": "revision_status",
+    "agug": "install_location", "ag/ug": "install_location",
+    "pipeclass": "pipe_class", "lineservice": "line_service",
+    "jointindex": "joint_index", "thk": "wall_thickness_mm",
+    "jointsize": "size_nps", "jointtype": "joint_type", "jsch": "schedule",
+    "pwhtreq": "pwht_required", "rtpercent": "ndt_percent_rt", "ptpercent": "ndt_percent_pt",
+    "sf": "weld_type", "testpackageno": ("test_package_number", "package_number"),
+    "jointstatus": "status", "basemetal": "material",
+    "left": "left_component", "leftqty": "left_qty",
+    "right": "right_component", "rightqty": "right_qty",
+    "jointremark": "remarks", "isexpired": "is_expired",
+    "documenttype": "document_type",
+    "documentno": ("document_number", "doc_number", "source_document_number"),
+    "documentdate": "document_date", "rtno": "rt_report_number",
+    "actionsby1": "action_by_1", "actionsby2": "action_by_2",
+    "workfront": "work_front", "link": "link_url",
+    "addby": "created_by", "editby": "updated_by",
+    "filelocation": "file_path",
+    "class": "doc_class", "index": "doc_index", "sheet": "sheet_number",
+    "receivetransno": "receive_transmittal_number",
+    "receiveletterno": "receive_letter_number",
+    "receivefrom": "received_from", "receivedate": "received_date",
+    "descriptionfarsi": "description_fa",
+    "sendto": "sent_to", "sendtransno": "send_transmittal_number",
+    "senddate": "sent_date", "sendletterno": "send_letter_number",
+    "doc no": "source_document_number", "docno": "source_document_number",
+    "sizein": "size_nps", "thicknessmm": "thickness_mm", "lengthmm": "length_mm",
+    "materialdescription": "description", "mtoqtypcs": "quantity_required",
+    "2yearsqtypcs": "two_year_qty", "purchaseqtypcs": "purchase_qty",
+    "commcode": "commodity_code", "mivno": "miv_number", "mivdate": "miv_date",
+    "mivqty": "miv_qty", "item": "item_number",
+    "joint": "joint_number", "weldstatus": "weld_status",
+    "fabricationweight": "fabrication_weight_kg",
+    "erectionweight": "erection_weight_kg",
+    "type1": "support_type", "type2": "type_2",
+    "fabfitupsupportreport": "fab_fitup_report_number",
+    "fabfitupsupportdate": "fab_fitup_date",
+    "fabfitupsupportresult": "fab_fitup_result",
+    "fabfitupsupportcontractor": "fab_fitup_contractor",
+    "fabweldsupportreport": "fab_weld_report_number",
+    "fabweldsupportdate": "fab_weld_date",
+    "fabweldsupportresult": "fab_weld_result",
+    "fabweldsupportcontractor": "fab_weld_contractor",
+    "erfitupsupportreport": "er_fitup_report_number",
+    "erfitupsupportdate": "er_fitup_date",
+    "erfitupsupportresult": "er_fitup_result",
+    "erfitupsupportcontractor": "er_fitup_contractor",
+    "erweldsupportreport": "er_weld_report_number",
+    "erweldsupportdate": "er_weld_date",
+    "erweldsupportresult": "er_weld_result",
+    "erweldsupportcontractor": "er_weld_contractor",
+    "weldername": "welder_name", "ptreportno": "pt_report_number",
+    "ptdate": "pt_date", "ptresult": "pt_result", "remark": "remarks",
+    "tqnumber": "tq_number", "dateraised": "raised_date",
+    "datesubmittedsent": "submitted_date",
+    "raisedbypersondepartment": "raised_by",
+    "descriptionofquery": "description",
+    "relateddocumentdrawing": "related_document",
+    "duedate": "due_date", "responseresolution": "response",
+    "dateresponsereceived": "response_received_date",
+    "responsedate": "response_received_date",
+    "statusopenclosed": "status", "assignedto": "assigned_to",
+    "approvalby": "approved_by", "notesattachments": "notes",
+    "diainch": "dia_inch_total",
+    "inchmeter": "inch_meter", "tmedum": "test_medium", "tmedium": "test_medium",
+    "testbar": "test_pressure_barg",
+    "finlinecheck": "linecheck_finished",
+    "linecheckresultdate": "linecheck_result_date",
+    "linecheckresult": "linecheck_result",
+    "linechecksubcon": "linecheck_subcontractor",
+    "fincleaning": "cleaning_finished",
+    "cleaningresultdate": "cleaning_result_date",
+    "cleaningresult": "cleaning_result",
+    "finpressuretest": "pressure_test_finished",
+    "pressuretestresultdate": "pressure_test_result_date",
+    "pressuretestresult": "pressure_test_result",
+    "pressuretestsubcon": "pressure_test_subcontractor",
+    "finflushingdraining": "flushing_finished",
+    "flushingdrainingresultdate": "flushing_result_date",
+    "flushingdrainingresult": "flushing_result",
+    "flushingdrainingsubcon": "flushing_subcontractor",
+    "finfacecleaning": "face_cleaning_finished",
+    "facecleaningresultdate": "face_cleaning_result_date",
+    "facecleaningresult": "face_cleaning_result",
+    "finreinstate": "reinstatement_finished",
+    "reinstateresultdate": "reinstatement_result_date",
+    "reinstateresult": "reinstatement_result",
+    "reinstatesubcon": "reinstatement_subcontractor",
+    "compnayname": "name", "companyname": "name", "logo": "logo_path",
 }
 
 # Implementation note.
 NATURAL_KEYS = {
     Project: ["project_code"], Area: ["project_id", "name"], LineListItem: ["project_id", "line_number"],
     MaterialRequisition: ["mr_number"], PurchaseOrder: ["po_number"], Spool: ["spool_number"],
-    WPS_PQR: ["wps_id"], Weld: ["project_id", "weld_number", "drawing_number"], TestRequest: ["request_no"],
-    Document: ["document_no"], WorkFront: ["front_code"], WorkTeam: ["team_code"],
+    WPS_PQR: ["wps_number"], Weld: ["project_id", "weld_number"], TestRequest: ["request_number"],
+    Document: ["doc_number"], WorkFront: ["front_code"], WorkTeam: ["team_code"],
     SiteMachine: ["machine_code"], WorkAssignment: ["id"], TurnoverDossier: ["dossier_number"],
-    User: ["username"],
+    User: ["username"], TechnicalQuery: ["project_id", "tq_number"],
+    Company: ["project_id"], PipeSupport: ["project_id", "support_tag"],
+    TestPackage: ["package_number"], MaterialTakeOff: ["project_id", "item_number"],
 }
 
 
@@ -76,8 +170,28 @@ NATURAL_KEYS = {
 # ──────────────────────────────────────────────
 
 def _norm(s: Any) -> str:
-    """استانداردسازی رشته‌ها برای تطابق ستون‌ها بدون حساسیت به فاصله، خط تیره و حروف بزرگ"""
-    return str(s or "").strip().lower().replace("_", "").replace("-", "").replace(" ", "")
+    """Match headers to columns without case, spaces, or punctuation."""
+    text = str(s or "").strip().lower()
+    for ch in ("_", "-", " ", "/", "\\", "[", "]", "(", ")", ".", "%"):
+        text = text.replace(ch, "")
+    return text
+
+
+def resolve_import_column(header: str, column_names) -> Optional[str]:
+    """Map an Access/Excel header onto a physical column name for one model."""
+    key = _norm(header)
+    names = list(column_names)
+    for name in names:
+        if _norm(name) == key:
+            return name
+    for alias, target in ALIASES.items():
+        if _norm(alias) != key:
+            continue
+        targets = target if isinstance(target, (tuple, list)) else (target,)
+        for candidate in targets:
+            if candidate in names:
+                return candidate
+    return None
 
 
 def _columns(model):
@@ -220,9 +334,7 @@ class DataExchangeService:
             for k, v in raw.items():
                 if k is None:
                     continue
-                key_norm = _norm(k)
-                # Implementation note.
-                target_col = next((c for c in cols if _norm(c) == key_norm), ALIASES.get(key_norm))
+                target_col = resolve_import_column(str(k), cols)
                 if target_col in cols:
                     normalized_row[target_col] = v
 

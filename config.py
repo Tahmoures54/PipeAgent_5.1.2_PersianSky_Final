@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# config.py – PipeAgent v5.2.6
+# config.py – PipeAgent v5.2.7
 
 from __future__ import annotations
 import os
@@ -30,7 +30,7 @@ _load_dotenv(PROJECT_ROOT / ".env")
 
 ORG_NAME = "PipeAgent"
 APP_NAME = "PipeAgent"
-APP_VERSION = "5.2.6"
+APP_VERSION = "5.2.7"
 SUPPORT_EMAIL = ""
 WHATSAPP_SUPPORT_PHONE = "+989160684552"
 WHATSAPP_SUPPORT_URL = "https://wa.me/989160684552"
@@ -78,6 +78,10 @@ class Roles:
     VIEWER: str = "viewer"
     PROJECT_MANAGER: str = "project_manager"
     PLANNER: str = "planner"
+    SUPERVISOR: str = "supervisor"
+    STOREKEEPER: str = "storekeeper"
+    DOCUMENT_CONTROLLER: str = "document_controller"
+    CLIENT_REP: str = "client_rep"
 
 TRIAL_PERIOD_DAYS = 30
 MAX_TRIAL_RECORDS = 500

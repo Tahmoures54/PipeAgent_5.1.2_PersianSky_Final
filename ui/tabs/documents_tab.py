@@ -9,7 +9,7 @@ import os
 import datetime
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, QUrl, QTimer, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QUrl, QTimer, QThread, pyqtSignal, QDate
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QTableWidget, QTableWidgetItem,
@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
     QLineEdit, QComboBox, QDialogButtonBox, QFileDialog,
     QTextEdit, QFrame, QProgressBar, QMenu, QGroupBox,
     QAbstractItemView, QApplication, QTabWidget,
-    QDateEdit, QCheckBox, QSplitter,
+    QDateEdit, QCheckBox, QSplitter, QScrollArea,
 )
 from PyQt6.QtGui import (
     QDesktopServices, QColor, QFont, QBrush, QPen,
@@ -28,6 +28,7 @@ from db.manager import DatabaseManager
 from db.models import Project, Document
 from security.session import SessionManager
 from services.document_workflow import DocumentWorkflowService
+from services.record_fields import apply_fields
 from config import DOCUMENT_TYPES, DOCUMENT_STATUSES
 
 logger = logging.getLogger(__name__)
@@ -55,10 +56,19 @@ DEFAULT_STATUS_COLOR = {"bg": "#f8f9fa", "fg": "#495057", "border": "#ced4da"}
 
 TABLE_COLUMNS = [
     "ID", "Doc Number", "Type", "Title", "Revision", "Status",
-    "Line No.", "Originator", "File", "Created", "Created By",
+    "Line No.", "Area", "Class", "Receive Transmittal", "Send Transmittal",
+    "Originator", "File", "Created", "Created By",
 ]
 
-COLUMN_WIDTHS = [50, 160, 110, 200, 60, 110, 120, 120, 160, 130, 100]
+COLUMN_WIDTHS = [50, 150, 100, 180, 60, 100, 110, 90, 70, 130, 130, 110, 140, 120, 90]
+
+DCC_FIELDS = (
+    "description", "description_fa", "receive_transmittal_number",
+    "receive_letter_number", "received_from", "received_date",
+    "sent_to", "send_transmittal_number", "sent_date", "send_letter_number",
+    "department", "area_name", "doc_class", "doc_index", "service",
+    "sheet_number", "size_nps", "markup", "remarks",
+)
 MAX_DISPLAY_ROWS = 2000
 
 
@@ -310,12 +320,16 @@ class DocumentDialog(QDialog):
             "✏️ Edit Document" if self._is_edit
             else "📄 Register Document / Drawing"
         )
-        self.setMinimumWidth(560)
-        self.setMinimumHeight(480)
+        self.setMinimumWidth(620)
+        self.setMinimumHeight(640)
 
-        layout = QFormLayout(self)
-        layout.setSpacing(12)
-        layout.setContentsMargins(20, 20, 20, 20)
+        outer = QVBoxLayout(self)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        inner = QWidget()
+        layout = QFormLayout(inner)
+        layout.setSpacing(10)
+        layout.setContentsMargins(16, 16, 16, 16)
 
         self.project_combo = QComboBox()
         if projects:
@@ -344,6 +358,34 @@ class DocumentDialog(QDialog):
         self.originator = QLineEdit()
         self.originator.setPlaceholderText("Company or person")
 
+        self.description = QTextEdit()
+        self.description.setMaximumHeight(60)
+        self.description_fa = QLineEdit()
+        self.recv_trans = QLineEdit()
+        self.recv_letter = QLineEdit()
+        self.recv_from = QLineEdit()
+        self.recv_date = QDateEdit()
+        self.recv_date.setCalendarPopup(True)
+        self.recv_date.setDisplayFormat("yyyy-MM-dd")
+        self.recv_date.setSpecialValueText("—")
+        self.recv_date.setDate(QDate(2000, 1, 1))
+        self.sent_to = QLineEdit()
+        self.send_trans = QLineEdit()
+        self.send_letter = QLineEdit()
+        self.sent_date = QDateEdit()
+        self.sent_date.setCalendarPopup(True)
+        self.sent_date.setDisplayFormat("yyyy-MM-dd")
+        self.sent_date.setSpecialValueText("—")
+        self.sent_date.setDate(QDate(2000, 1, 1))
+        self.department = QLineEdit()
+        self.area_name = QLineEdit()
+        self.doc_class = QLineEdit()
+        self.doc_index = QLineEdit()
+        self.service = QLineEdit()
+        self.sheet_number = QLineEdit()
+        self.size_nps = QLineEdit()
+        self.markup = QLineEdit()
+
         self.notes_edit = QTextEdit()
         self.notes_edit.setMaximumHeight(80)
         self.notes_edit.setPlaceholderText("Optional notes…")
@@ -366,8 +408,28 @@ class DocumentDialog(QDialog):
         layout.addRow("Status", self.status)
         layout.addRow("Line Number", self.line_edit)
         layout.addRow("Originator", self.originator)
+        layout.addRow("Description", self.description)
+        layout.addRow("Description (FA)", self.description_fa)
+        layout.addRow("Department", self.department)
+        layout.addRow("Area", self.area_name)
+        layout.addRow("Class", self.doc_class)
+        layout.addRow("Index", self.doc_index)
+        layout.addRow("Service", self.service)
+        layout.addRow("Sheet", self.sheet_number)
+        layout.addRow("Size", self.size_nps)
+        layout.addRow("Markup", self.markup)
+        layout.addRow("Receive Transmittal", self.recv_trans)
+        layout.addRow("Receive Letter No", self.recv_letter)
+        layout.addRow("Received From", self.recv_from)
+        layout.addRow("Receive Date", self.recv_date)
+        layout.addRow("Send To", self.sent_to)
+        layout.addRow("Send Transmittal", self.send_trans)
+        layout.addRow("Send Letter No", self.send_letter)
+        layout.addRow("Send Date", self.sent_date)
         layout.addRow("Notes", self.notes_edit)
         layout.addRow("File", file_row)
+        scroll.setWidget(inner)
+        outer.addWidget(scroll)
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok
@@ -375,7 +437,7 @@ class DocumentDialog(QDialog):
         )
         buttons.accepted.connect(self._validate_and_accept)
         buttons.rejected.connect(self.reject)
-        layout.addRow(buttons)
+        outer.addWidget(buttons)
 
         if edit_data:
             self._fill_edit_data(edit_data)
@@ -406,7 +468,34 @@ class DocumentDialog(QDialog):
 
         self.line_edit.setText(data.get("line_number", ""))
         self.originator.setText(data.get("originator", ""))
-        self.notes_edit.setPlainText(data.get("notes", ""))
+        self.notes_edit.setPlainText(
+            data.get("remarks", "") or data.get("notes", "") or ""
+        )
+        self.description.setPlainText(data.get("description", ""))
+        self.description_fa.setText(data.get("description_fa", ""))
+        self.department.setText(data.get("department", ""))
+        self.area_name.setText(data.get("area_name", ""))
+        self.doc_class.setText(data.get("doc_class", ""))
+        self.doc_index.setText(data.get("doc_index", ""))
+        self.service.setText(data.get("service", ""))
+        self.sheet_number.setText(data.get("sheet_number", ""))
+        self.size_nps.setText(data.get("size_nps", ""))
+        self.markup.setText(data.get("markup", ""))
+        self.recv_trans.setText(data.get("receive_transmittal_number", ""))
+        self.recv_letter.setText(data.get("receive_letter_number", ""))
+        self.recv_from.setText(data.get("received_from", ""))
+        self.send_trans.setText(data.get("send_transmittal_number", ""))
+        self.send_letter.setText(data.get("send_letter_number", ""))
+        self.sent_to.setText(data.get("sent_to", ""))
+        for edit, key in (
+            (self.recv_date, "received_date"),
+            (self.sent_date, "sent_date"),
+        ):
+            raw = data.get(key)
+            if raw:
+                parsed = QDate.fromString(str(raw)[:10], "yyyy-MM-dd")
+                if parsed.isValid():
+                    edit.setDate(parsed)
 
         fp = data.get("file_path", "")
         if fp:
@@ -455,7 +544,26 @@ class DocumentDialog(QDialog):
             "line_number": self.line_edit.text().strip(),
             "originator": self.originator.text().strip(),
             "notes": self.notes_edit.toPlainText().strip(),
+            "remarks": self.notes_edit.toPlainText().strip(),
             "source_file": self._source_file or None,
+            "description": self.description.toPlainText().strip() or self.notes_edit.toPlainText().strip(),
+            "description_fa": self.description_fa.text().strip(),
+            "receive_transmittal_number": self.recv_trans.text().strip(),
+            "receive_letter_number": self.recv_letter.text().strip(),
+            "received_from": self.recv_from.text().strip(),
+            "received_date": None if self.recv_date.date() == QDate(2000, 1, 1) else self.recv_date.date().toPyDate(),
+            "sent_to": self.sent_to.text().strip(),
+            "send_transmittal_number": self.send_trans.text().strip(),
+            "send_letter_number": self.send_letter.text().strip(),
+            "sent_date": None if self.sent_date.date() == QDate(2000, 1, 1) else self.sent_date.date().toPyDate(),
+            "department": self.department.text().strip(),
+            "area_name": self.area_name.text().strip(),
+            "doc_class": self.doc_class.text().strip(),
+            "doc_index": self.doc_index.text().strip(),
+            "service": self.service.text().strip(),
+            "sheet_number": self.sheet_number.text().strip(),
+            "size_nps": self.size_nps.text().strip(),
+            "markup": self.markup.text().strip(),
         }
 
 
@@ -970,8 +1078,27 @@ class DocumentsTab(QWidget):
                     "file_path": getattr(d, "file_path", "") or "",
                     "created_at": str(getattr(d, "created_at", "") or ""),
                     "created_by": getattr(d, "created_by", "") or "",
-                    "notes": getattr(d, "notes", "") or "",
+                    "notes": getattr(d, "remarks", "") or getattr(d, "notes", "") or "",
+                    "remarks": getattr(d, "remarks", "") or "",
                     "project_id": getattr(d, "project_id", None),
+                    "description": getattr(d, "description", "") or "",
+                    "description_fa": getattr(d, "description_fa", "") or "",
+                    "receive_transmittal_number": getattr(d, "receive_transmittal_number", "") or "",
+                    "receive_letter_number": getattr(d, "receive_letter_number", "") or "",
+                    "received_from": getattr(d, "received_from", "") or "",
+                    "received_date": getattr(d, "received_date", None),
+                    "sent_to": getattr(d, "sent_to", "") or "",
+                    "send_transmittal_number": getattr(d, "send_transmittal_number", "") or "",
+                    "sent_date": getattr(d, "sent_date", None),
+                    "send_letter_number": getattr(d, "send_letter_number", "") or "",
+                    "department": getattr(d, "department", "") or "",
+                    "area_name": getattr(d, "area_name", "") or "",
+                    "doc_class": getattr(d, "doc_class", "") or "",
+                    "doc_index": getattr(d, "doc_index", "") or "",
+                    "service": getattr(d, "service", "") or "",
+                    "sheet_number": getattr(d, "sheet_number", "") or "",
+                    "size_nps": getattr(d, "size_nps", "") or "",
+                    "markup": getattr(d, "markup", "") or "",
                 })
 
             self._apply_filters()
@@ -1027,6 +1154,10 @@ class DocumentsTab(QWidget):
                 d.get("revision", ""),
                 d.get("status", ""),
                 d.get("line_number", ""),
+                d.get("area_name", ""),
+                d.get("doc_class", ""),
+                d.get("receive_transmittal_number", ""),
+                d.get("send_transmittal_number", ""),
                 d.get("originator", ""),
                 Path(d["file_path"]).name if d.get("file_path") else "",
                 d.get("created_at", ""),
@@ -1145,6 +1276,10 @@ class DocumentsTab(QWidget):
                 created_by=getattr(self.session, "username", "") or "",
             )
             if doc:
+                with self.db.session_scope() as s:
+                    rec = s.get(Document, doc.id)
+                    if rec:
+                        apply_fields(rec, data, DCC_FIELDS)
                 for i in range(self.cmb_project.count()):
                     if self.cmb_project.itemData(i) == data["project_id"]:
                         self.cmb_project.setCurrentIndex(i)
@@ -1208,11 +1343,9 @@ class DocumentsTab(QWidget):
                 doc.line_number = data["line_number"]
                 doc.originator = data["originator"]
 
-                if hasattr(doc, "notes"):
-                    doc.notes = data.get("notes", "")
-
-                if data["source_file"]:
+                if data.get("source_file"):
                     doc.file_path = data["source_file"]
+                apply_fields(doc, data, DCC_FIELDS)
 
                 s.commit()
 

@@ -16,13 +16,14 @@ from PyQt6.QtWidgets import (
     QMessageBox, QDialog, QFormLayout, QLineEdit, QComboBox,
     QDialogButtonBox, QDoubleSpinBox, QTextEdit, QSplitter,
     QGroupBox, QFrame, QFileDialog, QApplication, QMenu,
-    QAbstractItemView,
+    QAbstractItemView, QCheckBox, QScrollArea,
 )
 from PyQt6.QtGui import QColor, QFont, QBrush, QCursor, QAction
 
 from db.manager import DatabaseManager
 from db.models import Project, Weld
 from security.session import SessionManager
+from services.record_fields import apply_fields
 from services.welding_service import WeldingService
 
 # ── Joint types & statuses (fallback if config missing) ────────
@@ -61,7 +62,14 @@ WELD_BADGES = {
     "NDT Pending":    {"bg": "#ffedd5", "fg": "#9a3412", "icon": "🛡️"},
     "Repaired":       {"bg": "#fce7f3", "fg": "#9d174d", "icon": "🔄"},
 }
-DEFAULT_BADGE = {"bg": "#f1f5f9", "fg": "#475569", "icon": "•"}
+WELD_REGISTER_FIELDS = (
+    "sheet_number", "sheet_revision", "revision_status", "install_location",
+    "region", "pipe_class", "line_service", "joint_index", "schedule",
+    "ndt_percent_rt", "ndt_percent_pt", "pwht_required", "test_package_number",
+    "spool_number", "contractor", "insulation", "left_component", "left_qty",
+    "right_component", "right_qty", "hold", "is_expired", "area_name",
+    "remarks",
+)
 
 
 # ─────────────────────────────────────────────
@@ -198,11 +206,15 @@ class WeldDialog(QDialog):
             "Edit Joint / WJC Entry" if self.is_edit
             else "Register New Joint / WJC"
         )
-        self.setMinimumWidth(500)
+        self.setMinimumWidth(560)
+        self.setMinimumHeight(620)
         self.setStyleSheet(JOINTS_STYLESHEET)
 
         layout = QVBoxLayout(self)
-        form = QFormLayout()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        inner = QWidget()
+        form = QFormLayout(inner)
         form.setSpacing(8)
 
         self.project_combo = QComboBox()
@@ -246,18 +258,76 @@ class WeldDialog(QDialog):
         self.wps_id = QLineEdit()
         self.wps_id.setPlaceholderText("e.g. WPS-CS-01")
 
+        self.sheet = QLineEdit()
+        self.sheet_rev = QLineEdit()
+        self.rev_status = QLineEdit()
+        self.install_loc = QComboBox()
+        self.install_loc.addItems(["", "AG", "UG"])
+        self.area_name = QLineEdit()
+        self.region = QLineEdit()
+        self.pipe_class = QLineEdit()
+        self.line_service = QLineEdit()
+        self.joint_index = QLineEdit()
+        self.schedule = QLineEdit()
+        self.rt_pct = QDoubleSpinBox()
+        self.rt_pct.setRange(0, 100)
+        self.rt_pct.setSuffix(" %")
+        self.pt_pct = QDoubleSpinBox()
+        self.pt_pct.setRange(0, 100)
+        self.pt_pct.setSuffix(" %")
+        self.pwht_req = QCheckBox("PWHT required")
+        self.spool_no = QLineEdit()
+        self.test_pack = QLineEdit()
+        self.contractor = QLineEdit()
+        self.insulation = QLineEdit()
+        self.left_comp = QLineEdit()
+        self.left_qty = QDoubleSpinBox()
+        self.left_qty.setRange(0, 1e6)
+        self.right_comp = QLineEdit()
+        self.right_qty = QDoubleSpinBox()
+        self.right_qty.setRange(0, 1e6)
+        self.hold = QCheckBox("Hold")
+        self.expired = QCheckBox("Expired isometric / joint")
+        self.remarks = QTextEdit()
+        self.remarks.setMaximumHeight(60)
+
         form.addRow("Project *:", self.project_combo)
         form.addRow("Joint / Weld ID *:", self.weld_id)
-        form.addRow("Erection Location:", self.weld_type)
+        form.addRow("Shop / Field:", self.weld_type)
         form.addRow("Piping Line No *:", self.line)
         form.addRow("Isometric Drawing:", self.iso)
+        form.addRow("Sheet No:", self.sheet)
+        form.addRow("Sheet Rev:", self.sheet_rev)
+        form.addRow("Rev Status:", self.rev_status)
+        form.addRow("AG / UG:", self.install_loc)
+        form.addRow("Area:", self.area_name)
+        form.addRow("Region:", self.region)
+        form.addRow("Pipe Class:", self.pipe_class)
+        form.addRow("Line Service:", self.line_service)
+        form.addRow("Joint Index:", self.joint_index)
         form.addRow("Joint Configuration:", self.joint)
         form.addRow("Nominal Size (NPS):", self.size)
-        form.addRow("Wall Thickness (SCH/mm):", self.thk)
+        form.addRow("Schedule:", self.schedule)
+        form.addRow("Wall Thickness (mm):", self.thk)
         form.addRow("Base Material / Grade:", self.material)
         form.addRow("Assigned Welder Stamp:", self.welder)
         form.addRow("Qualified WPS No:", self.wps_id)
-        layout.addLayout(form)
+        form.addRow("RT %:", self.rt_pct)
+        form.addRow("PT %:", self.pt_pct)
+        form.addRow("", self.pwht_req)
+        form.addRow("Spool Number:", self.spool_no)
+        form.addRow("Test Package No:", self.test_pack)
+        form.addRow("Contractor:", self.contractor)
+        form.addRow("Insulation:", self.insulation)
+        form.addRow("Left Component:", self.left_comp)
+        form.addRow("Left Qty:", self.left_qty)
+        form.addRow("Right Component:", self.right_comp)
+        form.addRow("Right Qty:", self.right_qty)
+        form.addRow("", self.hold)
+        form.addRow("", self.expired)
+        form.addRow("Joint Remark:", self.remarks)
+        scroll.setWidget(inner)
+        layout.addWidget(scroll)
 
         if self.is_edit and existing_data:
             pid = existing_data.get("project_id")
@@ -296,6 +366,30 @@ class WeldDialog(QDialog):
             self.wps_id.setText(
                 existing_data.get("wps_id", "")
             )
+            self.sheet.setText(existing_data.get("sheet_number", ""))
+            self.sheet_rev.setText(existing_data.get("sheet_revision", ""))
+            self.rev_status.setText(existing_data.get("revision_status", ""))
+            self.install_loc.setCurrentText(existing_data.get("install_location") or "")
+            self.area_name.setText(existing_data.get("area_name", ""))
+            self.region.setText(existing_data.get("region", ""))
+            self.pipe_class.setText(existing_data.get("pipe_class", ""))
+            self.line_service.setText(existing_data.get("line_service", ""))
+            self.joint_index.setText(existing_data.get("joint_index", ""))
+            self.schedule.setText(existing_data.get("schedule", ""))
+            self.rt_pct.setValue(float(existing_data.get("ndt_percent_rt") or 0))
+            self.pt_pct.setValue(float(existing_data.get("ndt_percent_pt") or 0))
+            self.pwht_req.setChecked(bool(existing_data.get("pwht_required")))
+            self.spool_no.setText(existing_data.get("spool_number", ""))
+            self.test_pack.setText(existing_data.get("test_package_number", ""))
+            self.contractor.setText(existing_data.get("contractor", ""))
+            self.insulation.setText(existing_data.get("insulation", ""))
+            self.left_comp.setText(existing_data.get("left_component", ""))
+            self.left_qty.setValue(float(existing_data.get("left_qty") or 0))
+            self.right_comp.setText(existing_data.get("right_component", ""))
+            self.right_qty.setValue(float(existing_data.get("right_qty") or 0))
+            self.hold.setChecked(bool(existing_data.get("hold")))
+            self.expired.setChecked(bool(existing_data.get("is_expired")))
+            self.remarks.setPlainText(existing_data.get("remarks", ""))
 
         btns = QHBoxLayout()
         btn_save = QPushButton("Save Entry")
@@ -336,6 +430,30 @@ class WeldDialog(QDialog):
             "material": self.material.text().strip(),
             "welder_id": self.welder.text().strip(),
             "wps_id": self.wps_id.text().strip(),
+            "sheet_number": self.sheet.text().strip(),
+            "sheet_revision": self.sheet_rev.text().strip(),
+            "revision_status": self.rev_status.text().strip(),
+            "install_location": self.install_loc.currentText().strip() or None,
+            "area_name": self.area_name.text().strip(),
+            "region": self.region.text().strip(),
+            "pipe_class": self.pipe_class.text().strip(),
+            "line_service": self.line_service.text().strip(),
+            "joint_index": self.joint_index.text().strip(),
+            "schedule": self.schedule.text().strip(),
+            "ndt_percent_rt": self.rt_pct.value() or None,
+            "ndt_percent_pt": self.pt_pct.value() or None,
+            "pwht_required": self.pwht_req.isChecked(),
+            "spool_number": self.spool_no.text().strip(),
+            "test_package_number": self.test_pack.text().strip(),
+            "contractor": self.contractor.text().strip(),
+            "insulation": self.insulation.text().strip(),
+            "left_component": self.left_comp.text().strip(),
+            "left_qty": self.left_qty.value() or None,
+            "right_component": self.right_comp.text().strip(),
+            "right_qty": self.right_qty.value() or None,
+            "hold": self.hold.isChecked(),
+            "is_expired": self.expired.isChecked(),
+            "remarks": self.remarks.toPlainText().strip(),
         }
         self.accept()
 
@@ -614,11 +732,12 @@ class JointsTab(QWidget):
         left_lay = QVBoxLayout(left_box)
         left_lay.setContentsMargins(8, 12, 8, 8)
 
-        self.table = QTableWidget(0, 10)
+        self.table = QTableWidget(0, 16)
         self.table.setHorizontalHeaderLabels([
-            "ID", "Weld / Joint ID", "Type", "Piping Line No",
-            "Joint Type", "Size (NPS)", "Thickness",
-            "Welder Stamp", "QC Status", "Repairs",
+            "ID", "Weld / Joint ID", "Shop / Field", "Line Number",
+            "ISO Drawing", "Sheet", "AG / UG", "Joint Type", "Size (NPS)",
+            "Spool Number", "Test Package", "Contractor", "QC Status",
+            "Hold", "Expired", "Repairs",
         ])
         self.table.setColumnHidden(0, True)
         self.table.setAlternatingRowColors(True)
@@ -775,6 +894,30 @@ class JointsTab(QWidget):
                     "wps_id": getattr(w, "wps_id", "") or "",
                     "status": w.status or "Pending",
                     "repair_count": w.repair_count or 0,
+                    "sheet_number": getattr(w, "sheet_number", "") or "",
+                    "sheet_revision": getattr(w, "sheet_revision", "") or "",
+                    "revision_status": getattr(w, "revision_status", "") or "",
+                    "install_location": getattr(w, "install_location", "") or "",
+                    "region": getattr(w, "region", "") or "",
+                    "pipe_class": getattr(w, "pipe_class", "") or "",
+                    "line_service": getattr(w, "line_service", "") or "",
+                    "joint_index": getattr(w, "joint_index", "") or "",
+                    "schedule": getattr(w, "schedule", "") or "",
+                    "ndt_percent_rt": getattr(w, "ndt_percent_rt", None),
+                    "ndt_percent_pt": getattr(w, "ndt_percent_pt", None),
+                    "pwht_required": bool(getattr(w, "pwht_required", False)),
+                    "test_package_number": getattr(w, "test_package_number", "") or "",
+                    "spool_number": getattr(w, "spool_number", "") or "",
+                    "contractor": getattr(w, "contractor", "") or "",
+                    "insulation": getattr(w, "insulation", "") or "",
+                    "left_component": getattr(w, "left_component", "") or "",
+                    "left_qty": getattr(w, "left_qty", None),
+                    "right_component": getattr(w, "right_component", "") or "",
+                    "right_qty": getattr(w, "right_qty", None),
+                    "hold": bool(getattr(w, "hold", False)),
+                    "is_expired": bool(getattr(w, "is_expired", False)),
+                    "area_name": getattr(w, "area_name", "") or "",
+                    "remarks": w.remarks or "",
                 })
 
             stats = self.svc.get_project_stats(self.project_id)
@@ -875,19 +1018,28 @@ class JointsTab(QWidget):
                 r, 3, QTableWidgetItem(w["line_number"])
             )
             self.table.setItem(
-                r, 4, QTableWidgetItem(w["joint_type"])
+                r, 4, QTableWidgetItem(w.get("iso_number") or "")
             )
             self.table.setItem(
-                r, 5, QTableWidgetItem(w["size"])
+                r, 5, QTableWidgetItem(w.get("sheet_number") or "")
             )
             self.table.setItem(
-                r, 6, QTableWidgetItem(
-                    f"{w['wall_thickness_mm'] or '—'} mm"
-                    if w["wall_thickness_mm"] else "—"
-                )
+                r, 6, QTableWidgetItem(w.get("install_location") or "")
             )
             self.table.setItem(
-                r, 7, QTableWidgetItem(w["welder_id"])
+                r, 7, QTableWidgetItem(w["joint_type"])
+            )
+            self.table.setItem(
+                r, 8, QTableWidgetItem(w["size"])
+            )
+            self.table.setItem(
+                r, 9, QTableWidgetItem(w.get("spool_number") or "")
+            )
+            self.table.setItem(
+                r, 10, QTableWidgetItem(w.get("test_package_number") or "")
+            )
+            self.table.setItem(
+                r, 11, QTableWidgetItem(w.get("contractor") or "")
             )
 
             # Status badge
@@ -899,7 +1051,12 @@ class JointsTab(QWidget):
             f = status_item.font()
             f.setBold(True)
             status_item.setFont(f)
-            self.table.setItem(r, 8, status_item)
+            self.table.setItem(r, 12, status_item)
+
+            hold_item = QTableWidgetItem("Yes" if w.get("hold") else "")
+            self.table.setItem(r, 13, hold_item)
+            exp_item = QTableWidgetItem("Yes" if w.get("is_expired") else "")
+            self.table.setItem(r, 14, exp_item)
 
             # Repair count
             rep_item = QTableWidgetItem(str(w["repair_count"]))
@@ -908,7 +1065,7 @@ class JointsTab(QWidget):
                 f_rep = rep_item.font()
                 f_rep.setBold(True)
                 rep_item.setFont(f_rep)
-            self.table.setItem(r, 9, rep_item)
+            self.table.setItem(r, 15, rep_item)
 
         self.table.setSortingEnabled(True)
 
@@ -1019,7 +1176,7 @@ class JointsTab(QWidget):
         d = dlg.result_data
         user = getattr(self.session, "username", "admin")
 
-        w = self.svc.create_weld(
+        w = self.svc.create_weld_legacy(
             d["project_id"], d["weld_id"],
             weld_type=d["weld_type"],
             line_number=d["line_number"],
@@ -1030,6 +1187,10 @@ class JointsTab(QWidget):
             welder_id=d["welder_id"], created_by=user,
         )
         if w:
+            with self.db.session_scope() as s:
+                rec = s.get(Weld, w.id)
+                if rec:
+                    apply_fields(rec, d, WELD_REGISTER_FIELDS)
             self.refresh()
             QMessageBox.information(
                 self, "Success",
@@ -1089,6 +1250,7 @@ class JointsTab(QWidget):
                     w.welder_id = d["welder_id"]
                     if hasattr(w, "wps_id"):
                         w.wps_id = d.get("wps_id", "")
+                    apply_fields(w, d, WELD_REGISTER_FIELDS)
                     # ✅ FIXED: use _utcnow() if field exists
                     if hasattr(w, "updated_at"):
                         w.updated_at = _utcnow()

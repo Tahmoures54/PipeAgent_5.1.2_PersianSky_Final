@@ -58,7 +58,17 @@ from PyQt6.QtWidgets import (
     QMenu,   # 🔧 Added — was missing in the previous version.
 )
 
+from db.models import User
+from services.module_access import SITE_ROLES, canonical_role, role_label
+
 logger = logging.getLogger(__name__)
+
+
+def _employee_id(value: Any) -> Optional[str]:
+    text = str(value or "").strip()
+    if not text or text.upper() == "N/A":
+        return None
+    return text
 
 
 # ════════════════════════════════════════════════════════════════
@@ -408,18 +418,14 @@ class AddEditUserDialog(QDialog):
         col_role = QVBoxLayout()
         col_role.addWidget(QLabel("PRIMARY PROJECT ROLE"))
         self.in_role = QComboBox()
-        self.in_role.addItems([
-            "Administrator (Full Access)",
-            "QA/QC Manager",
-            "Welding Inspector (Level II)",
-            "Site Execution Supervisor",
-            "Document Controller (DCC)",
-            "Material Controller / Storekeeper",
-            "Client Representative / TPI",
-        ])
+        for key, label in SITE_ROLES:
+            self.in_role.addItem(label, key)
         self.in_role.setToolTip("Primary RBAC role on the project")
         if self.is_edit:
-            self.in_role.setCurrentText(self.user_data.get("role", "QA/QC Manager"))
+            current = canonical_role(self.user_data.get("role", "viewer"))
+            idx = self.in_role.findData(current)
+            if idx >= 0:
+                self.in_role.setCurrentIndex(idx)
         col_role.addWidget(self.in_role)
         row3.addLayout(col_role)
 
@@ -602,7 +608,8 @@ class AddEditUserDialog(QDialog):
             "fullname": self.in_fullname.text().strip(),
             "email": self.in_email.text().strip() or "user@pipeagent.com",
             "stamp_id": self.in_stamp.text().strip().upper() or "N/A",
-            "role": self.in_role.currentText().split(" (")[0],
+            "role": self.in_role.currentData() or canonical_role(self.in_role.currentText()),
+            "password": self.in_password.text().strip() if hasattr(self, "in_password") else "",
             "dept": self.in_dept.currentText(),
             "status": "Active" if self.chk_active.isChecked() else "Suspended",
             "last_login": (
@@ -762,7 +769,11 @@ class ResetPasswordDialog(QDialog):
                 self, "Validation", "Passwords do not match."
             )
             return
+        self.password = p1
         self.accept()
+
+    def get_password(self) -> str:
+        return getattr(self, "password", "")
 
 
 # ════════════════════════════════════════════════════════════════
@@ -999,112 +1010,49 @@ class UserAdminDialog(QDialog):
         self._apply_filters()
         self._update_kpi()
 
-    # ── Sample User Data ──────────────────────────────────────
-    def _init_data(self):
-        self._project_security_meta: Dict[str, str] = {
-            "project": "South Pars Phase 14 • Area 100",
-            "auth_mode": "Local Encrypted Database + Corporate LDAP",
-            "ldap_server": "ldap://auth.pipeagent-project.co:389",
-            "crypto": "ECDSA SHA-256 Stamp Signatures",
-            "so_contact": "security-officer@pipeagent-project.co",
+    def _user_to_row(self, user: User) -> Dict[str, Any]:
+        last_login = "Never"
+        if user.last_login:
+            last_login = user.last_login.strftime("%Y-%m-%d %H:%M")
+        created = ""
+        if getattr(user, "created_at", None):
+            created = user.created_at.strftime("%Y-%m-%d")
+        return {
+            "user_id": str(user.id),
+            "pk": user.id,
+            "username": user.username,
+            "fullname": user.full_name or user.username,
+            "email": user.email or "",
+            "stamp_id": user.employee_id or "",
+            "role": canonical_role(user.role),
+            "role_label": role_label(user.role),
+            "dept": user.department or "",
+            "status": "Active" if user.is_active else "Suspended",
+            "last_login": last_login,
+            "created_date": created,
+            "perms": {"wjcs": True, "ndt": True, "dcc": True, "mrir": True, "hydro": True},
         }
 
-        self._users = [
-            {
-                "user_id": "U000000001",
-                "username": "admin",
-                "fullname": "System Administrator",
-                "email": "admin@pipeagent.com",
-                "stamp_id": "SYS-ADM",
-                "role": "Administrator",
-                "dept": "Project Management",
-                "status": "Active",
-                "last_login": "Today, 08:42",
-                "created_date": "2024-01-01",
-                "perms": {"wjcs": True, "ndt": True, "dcc": True, "mrir": True, "hydro": True},
-            },
-            {
-                "user_id": "U000000002",
-                "username": "kaveh.qc",
-                "fullname": "Eng. Kaveh Farhadi",
-                "email": "kaveh.qc@pipeagent.com",
-                "stamp_id": "QC-STAMP-01",
-                "role": "QA/QC Manager",
-                "dept": "Quality Assurance / QC",
-                "status": "Active",
-                "last_login": "Today, 09:15",
-                "created_date": "2024-02-10",
-                "perms": {"wjcs": True, "ndt": True, "dcc": False, "mrir": True, "hydro": True},
-            },
-            {
-                "user_id": "U000000003",
-                "username": "rezaei.ndt",
-                "fullname": "Eng. Saeed Rezaei",
-                "email": "rezaei.ndt@pipeagent.com",
-                "stamp_id": "NDT-L2-04",
-                "role": "Welding Inspector",
-                "dept": "Quality Assurance / QC",
-                "status": "Active",
-                "last_login": "Yesterday, 16:30",
-                "created_date": "2024-03-01",
-                "perms": {"wjcs": True, "ndt": True, "dcc": False, "mrir": False, "hydro": False},
-            },
-            {
-                "user_id": "U000000004",
-                "username": "dcc.lead",
-                "fullname": "Maryam Mohammadi",
-                "email": "dcc@pipeagent.com",
-                "stamp_id": "DCC-DOC-02",
-                "role": "Document Controller",
-                "dept": "Engineering & DCC",
-                "status": "Active",
-                "last_login": "Today, 10:05",
-                "created_date": "2024-01-15",
-                "perms": {"wjcs": False, "ndt": False, "dcc": True, "mrir": False, "hydro": False},
-            },
-            {
-                "user_id": "U000000005",
-                "username": "store.piping",
-                "fullname": "Ali Moradi",
-                "email": "store@pipeagent.com",
-                "stamp_id": "WH-MAT-01",
-                "role": "Material Controller",
-                "dept": "Warehouse & Logistics",
-                "status": "Active",
-                "last_login": "2025-02-21",
-                "created_date": "2024-04-12",
-                "perms": {"wjcs": False, "ndt": False, "dcc": False, "mrir": True, "hydro": False},
-            },
-            {
-                "user_id": "U000000006",
-                "username": "client.rep",
-                "fullname": "David Chen (Client TPI)",
-                "email": "david.chen@client.com",
-                "stamp_id": "TPI-SIGN-09",
-                "role": "Client Representative",
-                "dept": "Client PMT",
-                "status": "Active",
-                "last_login": "2025-02-22",
-                "created_date": "2024-05-01",
-                "perms": {"wjcs": True, "ndt": True, "dcc": False, "mrir": True, "hydro": True},
-            },
-            {
-                "user_id": "U000000007",
-                "username": "site.foreman",
-                "fullname": "Hassan Ebrahimi",
-                "email": "hassan.f@pipeagent.com",
-                "stamp_id": "FLD-SUP-12",
-                "role": "Site Execution Supervisor",
-                "dept": "Construction / Piping",
-                "status": "Suspended",
-                "last_login": "2024-12-10",
-                "created_date": "2024-06-20",
-                "perms": {"wjcs": True, "ndt": False, "dcc": False, "mrir": False, "hydro": False},
-            },
-        ]
+    def _init_data(self):
+        self._project_security_meta: Dict[str, str] = {
+            "project": "PipeAgent workspace",
+            "auth_mode": "Local Encrypted Database",
+            "ldap_server": "",
+            "crypto": "Argon2id / PBKDF2 password hashing",
+            "so_contact": "",
+        }
+        self._users = []
+        if self.db is None:
+            return
+        try:
+            with self.db.session_scope() as session:
+                users = session.query(User).order_by(User.username).all()
+                self._users = [self._user_to_row(user) for user in users]
+        except Exception:
+            logger.exception("Failed to load users from database")
+            self._users = []
         self._filtered_users = list(self._users)
 
-    # ── UI Construction ───────────────────────────────────────
     def _build_ui(self):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -1304,11 +1252,9 @@ class UserAdminDialog(QDialog):
         self.combo_role = QComboBox()
         self.combo_role.setObjectName("filterCombo")
         self.combo_role.setMinimumHeight(38)
-        self.combo_role.addItems([
-            "All Roles", "Administrator", "QA/QC Manager", "Welding Inspector",
-            "Site Execution Supervisor", "Document Controller", "Material Controller",
-            "Client Representative",
-        ])
+        self.combo_role.addItem("All Roles", None)
+        for key, label in SITE_ROLES:
+            self.combo_role.addItem(label, key)
         self.combo_role.currentTextChanged.connect(self._apply_filters)
         filter_bar.addWidget(self.combo_role, 1)
 
@@ -1994,7 +1940,7 @@ class UserAdminDialog(QDialog):
     # ── Filtering ─────────────────────────────────────────────
     def _apply_filters(self):
         search = self.search_input.text().strip().lower()
-        selected_role = self.combo_role.currentText()
+        selected_role = self.combo_role.currentData()
         selected_status = self.combo_status.currentText()
 
         filtered = []
@@ -2002,12 +1948,12 @@ class UserAdminDialog(QDialog):
             if search:
                 haystack = " ".join([
                     u["username"], u["fullname"], u["email"],
-                    u["stamp_id"], u["dept"], u["role"],
+                    u["stamp_id"], u["dept"], u["role"], role_label(u.get("role")),
                 ]).lower()
                 if search not in haystack:
                     continue
 
-            if selected_role != "All Roles" and u["role"] != selected_role:
+            if selected_role and canonical_role(u["role"]) != selected_role:
                 continue
 
             if selected_status != "All Statuses" and u["status"] != selected_status:
@@ -2052,7 +1998,7 @@ class UserAdminDialog(QDialog):
             item_fn.setToolTip(u["fullname"])
             self.table.setItem(row_idx, 1, item_fn)
 
-            item_role = QTableWidgetItem(u["role"])
+            item_role = QTableWidgetItem(role_label(u["role"]))
             item_role.setForeground(QColor(self.ACCENT))
             self.table.setItem(row_idx, 2, item_role)
 
@@ -2124,7 +2070,7 @@ class UserAdminDialog(QDialog):
             f"Department: {u['dept']} • Stamp: {u['stamp_id']}"
         )
 
-        self.m_role.setText(f"<b>Role:</b> {u['role']}")
+        self.m_role.setText(f"<b>Role:</b> {role_label(u['role'])}")
         self.m_dept.setText(f"<b>Department:</b> {u['dept']}")
         self.m_email.setText(f"<b>Email:</b> {u['email']}")
         self.m_stamp.setText(f"<b>Stamp ID:</b> {u['stamp_id']}")
@@ -2179,6 +2125,22 @@ class UserAdminDialog(QDialog):
         if modal.exec() != QDialog.DialogCode.Accepted:
             return
         new_u = modal.get_data()
+        if self.db is not None:
+            try:
+                created = self.db.create_user(
+                    username=new_u["username"],
+                    password=new_u.get("password") or "ChangeMe1!",
+                    role=canonical_role(new_u.get("role")),
+                    full_name=new_u.get("fullname") or "",
+                    email=new_u.get("email") or None,
+                    department=new_u.get("dept") or "",
+                    employee_id=_employee_id(new_u.get("stamp_id")),
+                    is_active=new_u.get("status", "Active") == "Active",
+                )
+                new_u = self._user_to_row(created)
+            except Exception as exc:
+                QMessageBox.critical(self, "User", str(exc))
+                return
         self._users.insert(0, new_u)
         self._apply_filters()
         self._reselect_by_user_id(new_u["user_id"])
@@ -2200,6 +2162,23 @@ class UserAdminDialog(QDialog):
         if modal.exec() != QDialog.DialogCode.Accepted:
             return
         updated_data = modal.get_data()
+        if self.db is not None:
+            try:
+                pk = int(selected.get("pk") or selected.get("user_id"))
+                with self.db.session_scope() as session:
+                    user = session.get(User, pk)
+                    if user:
+                        user.full_name = updated_data.get("fullname") or user.full_name
+                        user.email = updated_data.get("email") or user.email
+                        user.role = canonical_role(updated_data.get("role"))
+                        user.department = updated_data.get("dept") or ""
+                        user.employee_id = _employee_id(updated_data.get("stamp_id"))
+                        user.is_active = updated_data.get("status", "Active") == "Active"
+                        session.flush()
+                        updated_data = self._user_to_row(user)
+            except Exception as exc:
+                QMessageBox.critical(self, "User", str(exc))
+                return
         self._users[idx].update(updated_data)
 
         target_id = self._users[idx].get("user_id", "")
@@ -2213,6 +2192,16 @@ class UserAdminDialog(QDialog):
 
         modal = ResetPasswordDialog(username=selected["username"], parent=self)
         if modal.exec() == QDialog.DialogCode.Accepted:
+            password = modal.get_password()
+            if self.db is not None and password:
+                try:
+                    pk = int(selected.get("pk") or selected.get("user_id"))
+                    self.db.update_user_password_hash(
+                        pk, self.db._hash_password(password)
+                    )
+                except Exception as exc:
+                    QMessageBox.critical(self, "Password", str(exc))
+                    return
             QMessageBox.information(
                 self, "✅ Password Reset",
                 f"Password for user <b>{selected['username']}</b> "
@@ -2236,6 +2225,16 @@ class UserAdminDialog(QDialog):
             return
 
         new_status = "Suspended" if selected["status"] == "Active" else "Active"
+        if self.db is not None:
+            try:
+                pk = int(selected.get("pk") or selected.get("user_id"))
+                with self.db.session_scope() as session:
+                    user = session.get(User, pk)
+                    if user:
+                        user.is_active = new_status == "Active"
+            except Exception as exc:
+                QMessageBox.critical(self, "User", str(exc))
+                return
         self._users[idx]["status"] = new_status
 
         target_id = self._users[idx].get("user_id", "")
@@ -2269,6 +2268,16 @@ class UserAdminDialog(QDialog):
         idx = self._find_user_index(selected.get("user_id", ""))
         if idx < 0:
             return
+        if self.db is not None:
+            try:
+                pk = int(selected.get("pk") or selected.get("user_id"))
+                with self.db.session_scope() as session:
+                    user = session.get(User, pk)
+                    if user:
+                        session.delete(user)
+            except Exception as exc:
+                QMessageBox.critical(self, "User", str(exc))
+                return
         self._users.pop(idx)
         self._apply_filters()
 

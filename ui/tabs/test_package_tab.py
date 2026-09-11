@@ -24,6 +24,22 @@ from db.manager import DatabaseManager
 from db.models import Project, TestPackage, LineListItem, ProjectAction
 from security.session import SessionManager
 from services.license import increment_usage
+from services.record_fields import apply_fields
+
+TP_FINISH_FIELDS = (
+    "area_name", "install_location", "dia_inch_total", "inch_meter",
+    "linecheck_finished", "linecheck_result", "linecheck_result_date",
+    "linecheck_subcontractor", "cleaning_finished", "cleaning_result",
+    "cleaning_result_date", "cleaning_subcontractor",
+    "pressure_test_finished", "pressure_test_result",
+    "pressure_test_result_date", "pressure_test_subcontractor",
+    "flushing_finished", "flushing_result", "flushing_result_date",
+    "flushing_subcontractor", "face_cleaning_finished",
+    "face_cleaning_result", "face_cleaning_result_date",
+    "face_cleaning_subcontractor", "reinstatement_finished",
+    "reinstatement_result", "reinstatement_result_date",
+    "reinstatement_subcontractor",
+)
 
 # ── Test package statuses (fallback if config missing) ────────
 try:
@@ -268,6 +284,33 @@ class TPDialog(QDialog):
             "Punch Category 'A' Items 100% Cleared & Signed-off"
         )
 
+        self.area_name = QLineEdit()
+        self.install_loc = QComboBox()
+        self.install_loc.addItems(["", "AG", "UG"])
+        self.dia_inch = QDoubleSpinBox()
+        self.dia_inch.setRange(0, 1e6)
+        self.inch_meter = QDoubleSpinBox()
+        self.inch_meter.setRange(0, 1e6)
+        self.step_widgets = {}
+        for key, label in (
+            ("linecheck", "Line check"),
+            ("cleaning", "Cleaning"),
+            ("pressure_test", "Pressure test"),
+            ("flushing", "Flushing / draining"),
+            ("face_cleaning", "Face cleaning"),
+            ("reinstatement", "Reinstatement"),
+        ):
+            done = QCheckBox("Finished")
+            result = QComboBox()
+            result.addItems(["", "Accept", "Reject", "N/A", "Pending"])
+            when = QDateEdit()
+            when.setCalendarPopup(True)
+            when.setDisplayFormat("yyyy-MM-dd")
+            when.setSpecialValueText("—")
+            when.setDate(QDate(2000, 1, 1))
+            sub = QLineEdit()
+            self.step_widgets[key] = (done, result, when, sub)
+
         form.addRow("Target Project *:", self.project_combo)
         form.addRow("Package Number *:", self.pkg)
         form.addRow("Boundary Description:", self.desc)
@@ -280,6 +323,25 @@ class TPDialog(QDialog):
         form.addRow("Official Certificate No:", self.cert_no)
         form.addRow("Calibration Instruments Ref:", self.gauge_info)
         form.addRow("Pre-test Hold Clearance:", self.chk_punch_a)
+        form.addRow("Area:", self.area_name)
+        form.addRow("AG / UG:", self.install_loc)
+        form.addRow("Dia-Inch Total:", self.dia_inch)
+        form.addRow("Inch-Meter:", self.inch_meter)
+        for key, label in (
+            ("linecheck", "Line check"),
+            ("cleaning", "Cleaning"),
+            ("pressure_test", "Pressure test"),
+            ("flushing", "Flushing / draining"),
+            ("face_cleaning", "Face cleaning"),
+            ("reinstatement", "Reinstatement"),
+        ):
+            done, result, when, sub = self.step_widgets[key]
+            row = QHBoxLayout()
+            row.addWidget(done)
+            row.addWidget(result)
+            row.addWidget(when)
+            row.addWidget(sub)
+            form.addRow(f"{label}:", row)
         layout.addLayout(form)
 
         if self.is_edit and existing_data:
@@ -324,6 +386,20 @@ class TPDialog(QDialog):
             self.chk_punch_a.setChecked(
                 bool(existing_data.get("punch_a_cleared", False))
             )
+            self.area_name.setText(existing_data.get("area_name", ""))
+            self.install_loc.setCurrentText(existing_data.get("install_location") or "")
+            self.dia_inch.setValue(float(existing_data.get("dia_inch_total") or 0))
+            self.inch_meter.setValue(float(existing_data.get("inch_meter") or 0))
+            for key, widgets in self.step_widgets.items():
+                done, result, when, sub = widgets
+                done.setChecked(bool(existing_data.get(f"{key}_finished")))
+                result.setCurrentText(existing_data.get(f"{key}_result") or "")
+                sub.setText(existing_data.get(f"{key}_subcontractor") or "")
+                raw = existing_data.get(f"{key}_result_date")
+                if raw:
+                    parsed = QDate.fromString(str(raw)[:10], "yyyy-MM-dd")
+                    if parsed.isValid():
+                        when.setDate(parsed)
 
         btns = QHBoxLayout()
         btn_save = QPushButton("Save Test Package")
@@ -355,7 +431,7 @@ class TPDialog(QDialog):
         self.accept()
 
     def get_data(self) -> dict:
-        return {
+        data = {
             "project_id": self.project_combo.currentData(),
             "package_number": self.pkg.text().strip(),
             "description": self.desc.text().strip(),
@@ -377,7 +453,20 @@ class TPDialog(QDialog):
             "certificate_no": self.cert_no.text().strip(),
             "gauge_info": self.gauge_info.text().strip(),
             "punch_a_cleared": self.chk_punch_a.isChecked(),
+            "area_name": self.area_name.text().strip(),
+            "install_location": self.install_loc.currentText().strip() or None,
+            "dia_inch_total": self.dia_inch.value() or None,
+            "inch_meter": self.inch_meter.value() or None,
         }
+        for key, widgets in self.step_widgets.items():
+            done, result, when, sub = widgets
+            data[f"{key}_finished"] = done.isChecked()
+            data[f"{key}_result"] = result.currentText().strip() or None
+            data[f"{key}_result_date"] = (
+                None if when.date() == QDate(2000, 1, 1) else when.date().toPyDate()
+            )
+            data[f"{key}_subcontractor"] = sub.text().strip() or None
+        return data
 
 
 # ─────────────────────────────────────────────
@@ -611,11 +700,11 @@ class TestPackageTab(QWidget):
         layout.addWidget(filter_card)
 
         # Main table
-        self.table = QTableWidget(0, 9)
+        self.table = QTableWidget(0, 12)
         self.table.setHorizontalHeaderLabels([
-            "ID", "Package Number", "Test Boundary Scope", "Medium",
-            "Test P (bar)", "Hold (min)", "Milestone Status",
-            "Included Piping Lines", "Certificate No",
+            "ID", "Package Number", "Area", "AG / UG", "Test Boundary Scope",
+            "Medium", "Test P (bar)", "Line Check", "Pressure Test",
+            "Reinstatement", "Milestone Status", "Certificate No",
         ])
         self.table.setColumnHidden(0, True)
         self._setup_table_style(self.table)
@@ -784,6 +873,34 @@ class TestPackageTab(QWidget):
                         "test_date": (
                             getattr(p, "test_date", "") or ""
                         ),
+                        "area_name": getattr(p, "area_name", "") or "",
+                        "install_location": getattr(p, "install_location", "") or "",
+                        "dia_inch_total": getattr(p, "dia_inch_total", None),
+                        "inch_meter": getattr(p, "inch_meter", None),
+                        "linecheck_finished": bool(getattr(p, "linecheck_finished", False)),
+                        "linecheck_result": getattr(p, "linecheck_result", "") or "",
+                        "linecheck_result_date": getattr(p, "linecheck_result_date", None),
+                        "linecheck_subcontractor": getattr(p, "linecheck_subcontractor", "") or "",
+                        "cleaning_finished": bool(getattr(p, "cleaning_finished", False)),
+                        "cleaning_result": getattr(p, "cleaning_result", "") or "",
+                        "cleaning_result_date": getattr(p, "cleaning_result_date", None),
+                        "cleaning_subcontractor": getattr(p, "cleaning_subcontractor", "") or "",
+                        "pressure_test_finished": bool(getattr(p, "pressure_test_finished", False)),
+                        "pressure_test_result": getattr(p, "pressure_test_result", "") or "",
+                        "pressure_test_result_date": getattr(p, "pressure_test_result_date", None),
+                        "pressure_test_subcontractor": getattr(p, "pressure_test_subcontractor", "") or "",
+                        "flushing_finished": bool(getattr(p, "flushing_finished", False)),
+                        "flushing_result": getattr(p, "flushing_result", "") or "",
+                        "flushing_result_date": getattr(p, "flushing_result_date", None),
+                        "flushing_subcontractor": getattr(p, "flushing_subcontractor", "") or "",
+                        "face_cleaning_finished": bool(getattr(p, "face_cleaning_finished", False)),
+                        "face_cleaning_result": getattr(p, "face_cleaning_result", "") or "",
+                        "face_cleaning_result_date": getattr(p, "face_cleaning_result_date", None),
+                        "face_cleaning_subcontractor": getattr(p, "face_cleaning_subcontractor", "") or "",
+                        "reinstatement_finished": bool(getattr(p, "reinstatement_finished", False)),
+                        "reinstatement_result": getattr(p, "reinstatement_result", "") or "",
+                        "reinstatement_result_date": getattr(p, "reinstatement_result_date", None),
+                        "reinstatement_subcontractor": getattr(p, "reinstatement_subcontractor", "") or "",
                     })
 
                 self._update_kpis(
@@ -853,20 +970,30 @@ class TestPackageTab(QWidget):
                 r, 1, QTableWidgetItem(p["package_number"])
             )
             self.table.setItem(
-                r, 2, QTableWidgetItem(p["description"])
+                r, 2, QTableWidgetItem(p.get("area_name") or "")
             )
             self.table.setItem(
-                r, 3, QTableWidgetItem(p["test_medium"])
+                r, 3, QTableWidgetItem(p.get("install_location") or "")
             )
             self.table.setItem(
-                r, 4, QTableWidgetItem(
+                r, 4, QTableWidgetItem(p["description"])
+            )
+            self.table.setItem(
+                r, 5, QTableWidgetItem(p["test_medium"])
+            )
+            self.table.setItem(
+                r, 6, QTableWidgetItem(
                     f"{p['test_pressure_bar'] or '—'} bar"
                 )
             )
             self.table.setItem(
-                r, 5, QTableWidgetItem(
-                    f"{p['test_duration_min'] or '—'} min"
-                )
+                r, 7, QTableWidgetItem(p.get("linecheck_result") or "")
+            )
+            self.table.setItem(
+                r, 8, QTableWidgetItem(p.get("pressure_test_result") or "")
+            )
+            self.table.setItem(
+                r, 9, QTableWidgetItem(p.get("reinstatement_result") or "")
             )
 
             st_item = QTableWidgetItem(p["status"])
@@ -879,13 +1006,9 @@ class TestPackageTab(QWidget):
             f = st_item.font()
             f.setBold(True)
             st_item.setFont(f)
-            self.table.setItem(r, 6, st_item)
-
+            self.table.setItem(r, 10, st_item)
             self.table.setItem(
-                r, 7, QTableWidgetItem(p["line_numbers"])
-            )
-            self.table.setItem(
-                r, 8, QTableWidgetItem(p["certificate_no"])
+                r, 11, QTableWidgetItem(p["certificate_no"])
             )
 
         self.table.setSortingEnabled(True)
@@ -962,6 +1085,7 @@ class TestPackageTab(QWidget):
                     pkg.punch_a_cleared = d["punch_a_cleared"]
                 if hasattr(pkg, "design_pressure_bar"):
                     pkg.design_pressure_bar = d["design_pressure_bar"]
+                apply_fields(pkg, d, TP_FINISH_FIELDS)
                 s.add(pkg)
 
             self.refresh()
@@ -1022,6 +1146,7 @@ class TestPackageTab(QWidget):
                         p.design_pressure_bar = (
                             d["design_pressure_bar"]
                         )
+                    apply_fields(p, d, TP_FINISH_FIELDS)
 
             self.refresh()
             QMessageBox.information(
