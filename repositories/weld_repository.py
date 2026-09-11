@@ -24,19 +24,8 @@ from db.manager import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
-# Implementation note.
-if not hasattr(Weld, "weld_number") and hasattr(Weld, "weld_id"):
-    Weld.weld_number = Weld.weld_id
-if not hasattr(Weld, "drawing_number") and hasattr(Weld, "iso_number"):
-    Weld.drawing_number = Weld.iso_number
-if not hasattr(Weld, "welding_date") and hasattr(Weld, "weld_end_datetime"):
-    Weld.welding_date = Weld.weld_end_datetime
-if not hasattr(Weld, "root_welder_id") and hasattr(Weld, "welder_id"):
-    Weld.root_welder_id = Weld.welder_id
-if not hasattr(Weld, "cap_welder_id") and hasattr(Weld, "welder_id"):
-    Weld.cap_welder_id = Weld.welder_id
-if not hasattr(Weld, "dia_inch") and hasattr(Weld, "size"):
-    Weld.dia_inch = Weld.size
+# Industry aliases (weld_number, drawing_number, dia_inch, welding_date, …)
+# are declared as SQLAlchemy synonyms on db.models.Weld.
 
 
 class WeldType(str, Enum):

@@ -3,29 +3,187 @@
 db/manager.py – Database Manager for PipeAgent
 ===============================================
 Handles engine creation, session management, schema creation,
-and initial data seeding.
+lightweight schema patches, and initial data seeding.
 """
 
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from contextlib import contextmanager
 from typing import Optional, Generator, Any
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event, inspect, text
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.pool import StaticPool
 
-from config import DATABASE_URL
+from config import (
+    DATABASE_URL,
+    BOOTSTRAP_ADMIN_PASSWORD,
+    ALLOW_INSECURE_DEFAULTS,
+)
 from db.models import Base, User
 import db.models_enterprise  # ensure models are registered
 from core.exceptions import DatabaseError
-
-# Implementation note.
 from security.hashing import hash_password as secure_hash_password
 
 logger = logging.getLogger(__name__)
+
+# Physical DB column renames applied BEFORE create_all so SQLAlchemy does not
+# add empty duplicates next to the legacy names.
+_COLUMN_RENAMES = (
+    ("welds", "weld_id", "weld_number"),
+    ("welds", "size", "size_nps"),
+    ("welds", "filler_heat_no", "heat_number_filler"),
+    ("wps_pqr", "wps_id", "wps_number"),
+    ("wps_pqr", "pqr_id", "pqr_number"),
+    ("welders", "stencil_no", "stencil_number"),
+    ("welders", "certificate_no", "certificate_number"),
+    ("ncr_records", "ncr_no", "ncr_number"),
+    ("handover_packages", "package_no", "package_number"),
+    ("mcc_records", "mcc_no", "mcc_number"),
+    ("walkdown_checklists", "walkdown_no", "walkdown_number"),
+    ("tie_in_records", "tie_in_no", "tie_in_number"),
+    ("test_requests", "request_no", "request_number"),
+    ("test_requests", "weld_id", "weld_number"),
+    ("punch_items", "weld_id", "weld_number"),
+    ("wrapping_records", "weld_id", "weld_number"),
+    ("asbuilt_records", "drawing_no", "drawing_number"),
+    ("asbuilt_markups", "drawing_no", "drawing_number"),
+    ("pipe_supports", "drawing_no", "drawing_number"),
+    ("dimensional_check_records", "drawing_no", "drawing_number"),
+    ("dimensional_check_records", "check_no", "check_number"),
+    ("material_issue_records", "issue_slip_no", "issue_slip_number"),
+    ("material_receipt_records", "delivery_note_no", "delivery_note_number"),
+    ("material_items", "size", "size_nps"),
+    ("material_takeoff", "size", "size_nps"),
+    ("weld_report_drafts", "report_no", "report_number"),
+    ("weld_report_drafts", "weld_pk", "weld_id"),
+    ("weld_report_drafts", "weld_no", "weld_number"),
+    ("weld_report_drafts", "spool_no", "spool_number"),
+    ("weld_report_drafts", "wps_id", "wps_number"),
+    ("weld_reports", "report_no", "report_number"),
+    ("weld_reports", "weld_pk", "weld_id"),
+    ("weld_reports", "weld_no", "weld_number"),
+    ("weld_reports", "spool_no", "spool_number"),
+    ("weld_reports", "wps_id", "wps_number"),
+    ("fitup_report_drafts", "report_no", "report_number"),
+    ("fitup_report_drafts", "weld_pk", "weld_id"),
+    ("fitup_report_drafts", "weld_no", "weld_number"),
+    ("fitup_report_drafts", "spool_no", "spool_number"),
+    ("fitup_report_drafts", "fitup_no", "fitup_number"),
+    ("fitup_reports", "report_no", "report_number"),
+    ("fitup_reports", "weld_pk", "weld_id"),
+    ("fitup_reports", "weld_no", "weld_number"),
+    ("fitup_reports", "spool_no", "spool_number"),
+    ("fitup_reports", "fitup_no", "fitup_number"),
+    ("transmittals", "transmittal_no", "transmittal_number"),
+    ("ndt_records", "weld_id_fk", "weld_id"),
+    ("joint_history", "weld_id_fk", "weld_id"),
+    ("pwht_records", "weld_id_fk", "weld_id"),
+    ("pwht_records", "pwht_procedure_no", "pwht_procedure_number"),
+    ("hardness_test_records", "weld_id_fk", "weld_id"),
+    ("ferrite_test_records", "weld_id_fk", "weld_id"),
+    ("weld_map_entries", "weld_id_fk", "weld_id"),
+    ("welding_telemetry", "weld_id_fk", "weld_id"),
+    ("document_evidences", "weld_id_fk", "weld_id"),
+    ("document_evidences", "document_id_fk", "document_id"),
+    ("transmittal_items", "document_id_fk", "document_id"),
+    ("test_packages", "test_pressure_bar", "test_pressure_barg"),
+    ("test_packages", "certificate_no", "certificate_number"),
+    ("leak_test_records", "test_pressure_bar", "test_pressure_barg"),
+    ("valve_records", "hydro_shell_pressure_bar", "hydro_shell_pressure_barg"),
+    ("valve_records", "hydro_seat_pressure_bar", "hydro_seat_pressure_barg"),
+)
+
+_SCHEMA_PATCHES = (
+    ("projects", "status", "VARCHAR(40) DEFAULT 'ACTIVE'"),
+    ("projects", "project_type", "VARCHAR(50)"),
+    ("projects", "contract_number", "VARCHAR(100)"),
+    ("projects", "site_location", "VARCHAR(200)"),
+    ("projects", "start_date", "DATE"),
+    ("projects", "target_completion_date", "DATE"),
+    ("users", "email", "VARCHAR(255)"),
+    ("users", "auth_provider", "VARCHAR(40) DEFAULT 'local'"),
+    ("line_list", "corrosion_allowance_mm", "FLOAT"),
+    ("line_list", "ndt_percent_pt", "FLOAT DEFAULT 0"),
+    ("line_list", "ndt_percent_mt", "FLOAT DEFAULT 0"),
+    ("line_list", "insulation_thickness_mm", "FLOAT"),
+    ("line_list", "sour_service", "BOOLEAN DEFAULT 0"),
+    ("line_list", "dn", "VARCHAR(30)"),
+    ("line_list", "pcf_number", "VARCHAR(100)"),
+    ("line_list", "isometric_revision", "VARCHAR(20)"),
+    ("welds", "schedule", "VARCHAR(30)"),
+    ("welds", "welding_process", "VARCHAR(50)"),
+    ("welds", "welding_position", "VARCHAR(30)"),
+    ("welds", "p_number", "VARCHAR(20)"),
+    ("welds", "group_number", "VARCHAR(20)"),
+    ("welds", "heat_number_pipe", "VARCHAR(100)"),
+    ("welds", "vt_result", "VARCHAR(30)"),
+    ("welders", "qualified_diameter_max_inch", "FLOAT"),
+    ("welders", "f_number", "VARCHAR(20)"),
+    ("welders", "progression", "VARCHAR(20)"),
+    ("welders", "backing", "VARCHAR(20)"),
+    ("welders", "last_welded_date", "DATE"),
+    ("wps_pqr", "p_number", "VARCHAR(20)"),
+    ("wps_pqr", "f_number", "VARCHAR(20)"),
+    ("wps_pqr", "a_number", "VARCHAR(20)"),
+    ("wps_pqr", "thickness_min_mm", "FLOAT"),
+    ("wps_pqr", "thickness_max_mm", "FLOAT"),
+    ("wps_pqr", "position", "VARCHAR(30)"),
+    ("wps_pqr", "gas_backing", "BOOLEAN DEFAULT 0"),
+    ("ndt_records", "procedure_number", "VARCHAR(100)"),
+    ("ndt_records", "acceptance_standard", "VARCHAR(100)"),
+    ("ndt_records", "technique", "VARCHAR(80)"),
+    ("ndt_records", "extent_pct", "FLOAT"),
+    ("ndt_records", "indication", "TEXT"),
+    ("ndt_records", "film_density", "FLOAT"),
+    ("ndt_records", "is_penalty", "BOOLEAN DEFAULT 0"),
+    ("ndt_records", "penalty_source_weld_id", "INTEGER"),
+    ("test_packages", "design_pressure_barg", "FLOAT"),
+    ("test_packages", "isolation_boundary", "TEXT"),
+    ("test_packages", "pid_limits", "VARCHAR(200)"),
+)
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _is_sqlite(url: str) -> bool:
+    return url.startswith("sqlite:")
+
+
+def _is_memory_sqlite(url: str) -> bool:
+    normalized = url.replace("\\", "/").lower()
+    return normalized in {"sqlite://", "sqlite:///:memory:"} or ":memory:" in normalized
+
+
+def _engine_kwargs(url: str) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {
+        "echo": False,
+        "future": True,
+        "pool_pre_ping": True,
+    }
+    if _is_sqlite(url):
+        kwargs["connect_args"] = {"check_same_thread": False}
+        if _is_memory_sqlite(url):
+            kwargs["poolclass"] = StaticPool
+    return kwargs
+
+
+def _register_sqlite_pragmas(engine: Engine) -> None:
+    @event.listens_for(engine, "connect")
+    def _set_sqlite_pragma(dbapi_connection, _connection_record) -> None:  # type: ignore[no-untyped-def]
+        cursor = dbapi_connection.cursor()
+        try:
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.execute("PRAGMA busy_timeout=5000")
+            if not _is_memory_sqlite(str(engine.url)):
+                cursor.execute("PRAGMA journal_mode=WAL")
+        finally:
+            cursor.close()
 
 
 class DatabaseManager:
@@ -33,11 +191,36 @@ class DatabaseManager:
 
     def __init__(self, database_url: Optional[str] = None) -> None:
         self.database_url = database_url or DATABASE_URL
-        self._engine = None
+        self._engine: Optional[Engine] = None
         self._session_factory = None
         self.SessionLocal = None
         self._initialized = False
         self._initializing = False
+
+    # Legacy aliases used by tests and the enterprise API.
+    @property
+    def _is_initialized(self) -> bool:
+        return self._initialized
+
+    @_is_initialized.setter
+    def _is_initialized(self, value: bool) -> None:
+        self._initialized = bool(value)
+
+    @property
+    def engine(self) -> Optional[Engine]:
+        return self._engine
+
+    @engine.setter
+    def engine(self, value: Optional[Engine]) -> None:
+        self._engine = value
+        if value is not None:
+            self._session_factory = sessionmaker(
+                bind=value,
+                class_=Session,
+                expire_on_commit=False,
+                future=True,
+            )
+            self.SessionLocal = self._session_factory
 
     # ──────────────────────────────
     # Initialization
@@ -52,18 +235,25 @@ class DatabaseManager:
         self._initializing = True
         try:
             logger.info("Initializing database engine...")
-            self._engine = create_engine(self.database_url, echo=False, future=True)
+            if self._engine is None:
+                self._engine = create_engine(self.database_url, **_engine_kwargs(self.database_url))
+                if _is_sqlite(self.database_url):
+                    _register_sqlite_pragmas(self._engine)
+
             self._session_factory = sessionmaker(
                 bind=self._engine,
                 class_=Session,
                 expire_on_commit=False,
                 future=True,
             )
-
             self.SessionLocal = self._session_factory
+
+            logger.info("Applying industry column renames...")
+            self._apply_column_renames()
 
             logger.info("Creating all tables...")
             Base.metadata.create_all(self._engine)
+            self._apply_schema_patches()
 
             self._initialized = True
 
@@ -84,6 +274,86 @@ class DatabaseManager:
         if not self._initialized:
             self.initialize()
 
+    def _quote_ident(self, name: str) -> str:
+        return '"' + name.replace('"', '""') + '"'
+
+    def _apply_column_renames(self) -> None:
+        """Rename legacy columns to industry-standard names on existing databases."""
+        if self._engine is None:
+            return
+        inspector = inspect(self._engine)
+        for table, old, new in _COLUMN_RENAMES:
+            inspector.clear_cache()
+            tables = set(inspector.get_table_names())
+            if table not in tables:
+                continue
+            columns = {col["name"]: col for col in inspector.get_columns(table)}
+            if old in columns and new not in columns:
+                rename_sql = (
+                    f"ALTER TABLE {self._quote_ident(table)} "
+                    f"RENAME COLUMN {self._quote_ident(old)} TO {self._quote_ident(new)}"
+                )
+                try:
+                    with self._engine.begin() as conn:
+                        conn.execute(text(rename_sql))
+                    logger.info("Renamed column %s.%s -> %s", table, old, new)
+                except Exception:
+                    logger.warning(
+                        "RENAME COLUMN failed for %s.%s; copying into %s instead.",
+                        table, old, new, exc_info=True,
+                    )
+                    self._copy_column(table, old, new, columns[old])
+            elif old in columns and new in columns:
+                self._copy_column(table, old, new, columns[old])
+
+    def _copy_column(self, table: str, old: str, new: str, old_meta: dict[str, Any]) -> None:
+        """Add `new` if needed and copy values from `old` where `new` is null."""
+        if self._engine is None:
+            return
+        inspector = inspect(self._engine)
+        inspector.clear_cache()
+        existing = {col["name"] for col in inspector.get_columns(table)}
+        if new not in existing:
+            ddl_type = str(old_meta.get("type") or "TEXT")
+            add_sql = (
+                f"ALTER TABLE {self._quote_ident(table)} "
+                f"ADD COLUMN {self._quote_ident(new)} {ddl_type}"
+            )
+            with self._engine.begin() as conn:
+                conn.execute(text(add_sql))
+            logger.info("Added column %s.%s for legacy copy from %s", table, new, old)
+        copy_sql = (
+            f"UPDATE {self._quote_ident(table)} "
+            f"SET {self._quote_ident(new)} = {self._quote_ident(old)} "
+            f"WHERE {self._quote_ident(new)} IS NULL "
+            f"AND {self._quote_ident(old)} IS NOT NULL"
+        )
+        with self._engine.begin() as conn:
+            conn.execute(text(copy_sql))
+
+    def _apply_schema_patches(self) -> None:
+        """Add columns introduced after the original SQLite file was created."""
+        if self._engine is None:
+            return
+        inspector = inspect(self._engine)
+        inspector.clear_cache()
+        tables = set(inspector.get_table_names())
+        for table, column, ddl in _SCHEMA_PATCHES:
+            if table not in tables:
+                continue
+            existing = {col["name"] for col in inspector.get_columns(table)}
+            if column in existing:
+                continue
+            logger.info("Applying schema patch: %s.%s", table, column)
+            with self._engine.begin() as conn:
+                conn.execute(
+                    text(
+                        f"ALTER TABLE {self._quote_ident(table)} "
+                        f"ADD COLUMN {self._quote_ident(column)} {ddl}"
+                    )
+                )
+            inspector.clear_cache()
+
     # ──────────────────────────────
     # Session Management
     # ──────────────────────────────
@@ -91,7 +361,8 @@ class DatabaseManager:
     def session_scope(self) -> Generator[Session, None, None]:
         """Preferred: context-managed session with auto commit/rollback."""
         self._ensure_initialized()
-        session = self._session_factory()
+        factory = self._session_factory or self.SessionLocal
+        session = factory()
         try:
             yield session
             session.commit()
@@ -107,7 +378,19 @@ class DatabaseManager:
         Caller is responsible for closing it (session.close()).
         """
         self._ensure_initialized()
-        return self._session_factory()
+        factory = self._session_factory or self.SessionLocal
+        return factory()
+
+    def test_connection(self) -> bool:
+        """Return True when the engine can execute a trivial statement."""
+        try:
+            self._ensure_initialized()
+            with self._engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            return True
+        except Exception:
+            logger.exception("Database connectivity check failed")
+            return False
 
     # ──────────────────────────────
     # User convenience methods
@@ -116,12 +399,19 @@ class DatabaseManager:
         """Fetch a user by username, or None if not found."""
         with self.session_scope() as session:
             user = session.query(User).filter(User.username == username).first()
+            if user is None:
+                return None
+            session.expunge(user)
             return user
 
     def get_user_by_id(self, user_id: int) -> Optional[User]:
         """Fetch a user by primary key."""
         with self.session_scope() as session:
-            return session.get(User, user_id)
+            user = session.get(User, user_id)
+            if user is None:
+                return None
+            session.expunge(user)
+            return user
 
     def create_user(self, username: str, password: str, role: str = "viewer", **kwargs) -> User:
         """Create a new user and return the detached object."""
@@ -142,7 +432,13 @@ class DatabaseManager:
         with self.session_scope() as session:
             db_user = session.get(User, user.id)
             if db_user:
-                db_user.last_login = datetime.utcnow()
+                db_user.last_login = _utcnow()
+
+    def update_user_password_hash(self, user_id: int, password_hash: str) -> None:
+        with self.session_scope() as session:
+            db_user = session.get(User, user_id)
+            if db_user:
+                db_user.password_hash = password_hash
 
     @staticmethod
     def _hash_password(password: str) -> str:
@@ -155,21 +451,44 @@ class DatabaseManager:
     # ──────────────────────────────
     # Seed Data
     # ──────────────────────────────
+    def _resolve_bootstrap_password(self) -> Optional[str]:
+        if BOOTSTRAP_ADMIN_PASSWORD:
+            return BOOTSTRAP_ADMIN_PASSWORD
+        if "postgresql" in (self.database_url or "").lower():
+            logger.warning(
+                "Skipping default admin on PostgreSQL. Set PIPEAGENT_BOOTSTRAP_ADMIN_PASSWORD."
+            )
+            return None
+        if not ALLOW_INSECURE_DEFAULTS:
+            logger.warning("Insecure default admin is disabled; no bootstrap admin was created.")
+            return None
+        logger.warning(
+            "Creating default admin user with password 'admin'. "
+            "Change this immediately and never use it in production."
+        )
+        return "admin"
+
     def _seed_default_data(self) -> None:
         with self.session_scope() as session:
             admin = session.query(User).filter_by(username="admin").first()
-            if not admin:
-                admin = User(
-                    username="admin",
-                    password_hash=self._hash_password("admin"),
-                    role="admin",
-                    full_name="Administrator",
-                    is_active=True,
-                )
-                session.add(admin)
-                logger.info("Default admin user created (username: admin, password: admin).")
-            else:
+            if admin:
                 logger.info("Admin user already exists; skipping creation.")
+                return
+
+            password = self._resolve_bootstrap_password()
+            if not password:
+                return
+
+            admin = User(
+                username="admin",
+                password_hash=self._hash_password(password),
+                role="admin",
+                full_name="Administrator",
+                is_active=True,
+                auth_provider="local",
+            )
+            session.add(admin)
+            logger.info("Bootstrap admin user created (username: admin).")
 
         logger.info("Default data seeding completed.")
 
@@ -193,3 +512,6 @@ class DatabaseManager:
             self._engine.dispose()
         self._initialized = False
         self._initializing = False
+        self._engine = None
+        self._session_factory = None
+        self.SessionLocal = None

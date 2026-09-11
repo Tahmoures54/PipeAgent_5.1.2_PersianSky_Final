@@ -1,24 +1,17 @@
-from db.models import Base, Project, LineListItem, WorkFront, Weld, ExecutionEvent, ExecutionImpact
-from db.manager import DatabaseManager
+from db.models import Project, LineListItem, WorkFront, Weld, ExecutionEvent
 from services.execution_event_bridge import install
 from services.execution_os import ExecutionOSService
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+from tests.helpers import make_db
 
 
-def make_db():
-    db=DatabaseManager("sqlite://")
-    db.engine=create_engine("sqlite://", connect_args={"check_same_thread":False}, poolclass=StaticPool)
-    Base.metadata.create_all(db.engine)
-    db.SessionLocal=sessionmaker(bind=db.engine, expire_on_commit=False)
-    db._is_initialized=True
+def _db():
+    db = make_db()
     install()
     return db
 
 
 def test_business_change_becomes_persistent_event_and_forecast():
-    db=make_db()
+    db=_db()
     with db.session_scope() as s:
         p=Project(project_code="EVT-01", title="Event Control")
         s.add(p); s.flush()

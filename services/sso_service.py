@@ -24,6 +24,11 @@ from urllib3.util.retry import Retry
 from config import OIDC_AUDIENCE, OIDC_ISSUER_URL
 from db.models import User
 
+try:
+    from sqlalchemy import func
+except ImportError:  # pragma: no cover
+    func = None
+
 logger = logging.getLogger(__name__)
 
 # Implementation note.
@@ -67,6 +72,11 @@ class OIDCInvalidSignatureError(OIDCError):
 
 class OIDCClaimsValidationError(OIDCError):
     """خطای عدم انطباق فیلدهای استاندارد Issuer, Audience یا Subject"""
+    pass
+
+
+class OIDCValidationError(OIDCError):
+    """توکن خالی، ناقص یا از نظر ساختاری نامعتبر است."""
     pass
 
 
@@ -294,6 +304,20 @@ class OIDCService:
 
         # Implementation note.
         return self._parse_claims_dto(payload)
+
+    def verify(self, token: str) -> Dict[str, Any]:
+        """Backward-compatible dict payload used by the enterprise API."""
+        claims = self.verify_token(token)
+        mapped_role = self._map_oidc_role_to_pipeagent(claims.roles)
+        return {
+            "sub": claims.subject,
+            "email": claims.email,
+            "preferred_username": claims.username,
+            "name": claims.full_name,
+            "role": mapped_role,
+            "pipeagent_role": mapped_role,
+            "roles": sorted(claims.roles),
+        }
 
     # Implementation note.
 

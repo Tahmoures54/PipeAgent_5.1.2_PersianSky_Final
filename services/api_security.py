@@ -13,12 +13,17 @@ import hmac
 import logging
 import secrets
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from sqlalchemy.exc import SQLAlchemyError
 from db.models import ApiCredential
+
+try:
+    from config import API_TOKEN_PEPPER
+except ImportError:
+    API_TOKEN_PEPPER = ""
 
 logger = logging.getLogger(__name__)
 
@@ -158,7 +163,7 @@ class ApiSecurity:
             try:
                 credential = ApiCredential(
                     name=name.strip(),
-                    api_key=full_token,
+                    api_key=f"{token_prefix}_REDACTED",
                     token_prefix=token_prefix,
                     token_hash=token_hash,
                     scopes=scopes_str,
@@ -224,12 +229,27 @@ class ApiSecurity:
                 .first()
             )
 
+            if cred is None:
+                # Legacy rows stored the raw token in api_key before hashing was enforced.
+                cred = (
+                    session.query(ApiCredential)
+                    .filter(ApiCredential.api_key == clean_token)
+                    .first()
+                )
+                if cred is not None and not cred.token_hash:
+                    cred.token_hash = token_hash
+                    cred.api_key = f"{cred.token_prefix or 'pa_live'}_REDACTED"
+
             if not cred:
                 return None
 
             # Implementation note.
             if getattr(cred, "revoked_at", None) is not None:
                 logger.warning(f"Rejected API Key [{cred.token_prefix}]: Key has been revoked.")
+                return None
+
+            if getattr(cred, "is_active", True) is False:
+                logger.warning(f"Rejected API Key [{cred.token_prefix}]: Key is inactive.")
                 return None
 
             # Implementation note.
@@ -379,4 +399,4 @@ class ApiSecurity:
     @staticmethod
     def _hash_token(raw_token: str) -> str:
         """تولید هش یکپارچه با الگوریتم SHA-256"""
-        return hashlib.sha256(raw_token.strip().encode("utf-8")).hexdigest()
+        return hashlib.sha256((API_TOKEN_PEPPER + raw_token.strip()).encode("utf-8")).hexdigest()

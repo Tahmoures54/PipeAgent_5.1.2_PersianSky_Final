@@ -1,27 +1,8 @@
 from datetime import date
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
-from db.models import Base, Project, Weld, WeldReportDraft, FitupReportDraft
-from db.manager import DatabaseManager
+from db.models import Project, Weld, WeldReportDraft
 from services.reporting_service import ReportingService
-
-
-def make_db():
-    db = DatabaseManager("sqlite:///:memory:")
-    db.engine = create_engine("sqlite:///:memory:")
-    # A single connection is required for an in-memory SQLite database.
-    from sqlalchemy.pool import StaticPool
-    db.engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(db.engine)
-    db.SessionLocal = sessionmaker(bind=db.engine, expire_on_commit=False)
-    db._is_initialized = True
-    return db
+from tests.helpers import make_db
 
 
 def test_weld_draft_html_contains_business_control(tmp_path, monkeypatch):

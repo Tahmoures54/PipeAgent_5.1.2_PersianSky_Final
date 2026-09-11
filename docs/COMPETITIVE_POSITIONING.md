@@ -1,33 +1,43 @@
-# PipeAgent 3.0 — Competitive Positioning
+# PipeAgent competitive positioning
 
-## Strategic benchmark
+PipeAgent is a **Piping Execution Operating System**, not a weld spreadsheet and not a generic construction dashboard.
 
-PipeAgent is positioned as a **Piping Execution Operating System** rather than a standalone weld register or a generic construction dashboard.
+## Who we compete with
 
-### What we learn from the market
+| Competitor | What they sell | Where they are strong | Where PipeAgent should beat them |
+|---|---|---|---|
+| **Prometheus Weld-Console** | Weld / NDE / hydro completions for EPC | Design-model import, **automatic NDE/PWHT assignment**, B31.3 random/progressive RT, hydro clearance | Execution graph, next-best-action, work-front constraints, turnover evidence |
+| **WeldTrace / Welding Manager / Field PM weld map** | Welder WPQ, continuity, weld log, NDE, test packs | QW-322 continuity, QR travelers, RT% dashboards | Line→ISO→spool→front→weld→NDT→test→punch chain in one OS |
+| **Konnect xD Construction** | FPSO / plant construction intelligence | IDF/PCF ingest, earned value gated on inspection | Piping-specific code gates (B31.3 lots, hydro, QW-322) plus predictive brief |
+| **Hexagon Smart Completions / Smart Materials** | Completions and material traceability at plant scale | CFIHOS, tag completeness, owner handover | Faster piping-crew daily decisions without an 18-month completions rollout |
+| **Procore / generic PM** | Cost, RFI, daily reports | Budget and document control | They do not speak weld number, line class, NDE lot or hydro pack |
 
-- Welding-specialist platforms establish the baseline for weld-level traceability, WPS compliance, heat-input verification, deviation alerts, qualifications, QR identification and project documentation.
-- Construction project-control platforms establish the baseline for integrated scope, cost, schedule, work packaging, field progress, forecasting and executive reporting.
-- PipeAgent combines those patterns around the piping execution chain: **Line → ISO → Spool → Work Front → Fit-up → Weld → NDT → Repair → Test → Punch → Turnover**.
+The market baseline is no longer “store a weld register”. Buyers expect **code-correct NDE lots**, **welder continuity**, **hydrotest gates that match the ITP**, and **a daily instruction list**.
 
-## Product moat
+## What 5.2.6 actually does
 
-1. **Execution Graph** — evidence stays connected across the entire piping lifecycle.
-2. **Constraint Radar** — identify why work cannot move before crews become idle.
-3. **Next Best Action** — rank actions by operational impact instead of merely displaying KPIs.
-4. **Leading Indicators** — detect blockers, unassigned ready work, NDT queue growth, draft backlog and recovery pressure early.
-5. **Quality-to-Production Feedback** — repair and NDT trends feed execution decisions.
-6. **Controlled Evidence** — drafts become official records only through business-rule approval.
-7. **Digital Turnover by Evidence** — dossier completeness is derived from project evidence.
-8. **Explainable Intelligence** — every hint exposes evidence and recommended action.
-9. **Transparent What-If** — scenario analysis explicitly states assumptions and never presents a scenario as an approved schedule.
-10. **Offline-first field path** — QR/event capture is designed to work locally before central synchronization.
-11. **International English** — terminology is suitable for EPC, fabrication, construction and owner teams.
+PipeAgent now issues the same class of daily instruction Weld-Console is known for, from data already in the line list and weld register:
 
-## Strategic question
+1. **B31.3 examination extent** — RT/UT/PT/MT percent from the line list, measured by joint count and NPS-inch.
+2. **Deterministic lot selection** — extra joints are chosen with a stable hash of `weld_number` so QC can audit why that joint was picked.
+3. **Progressive examination** — a rejected spot test pulls two more joints from the same welder; a failed extra exam escalates the remainder of that lot.
+4. **Hydrotest clearance** — Category-A punches, rejected NDE, PWHT, coverage shortfall, spring-hanger pins.
+5. **QW-322 continuity** — 150-day warning and 180-day stop from `last_welded_date` or the latest production weld.
+6. **Execution brief** — ranked next actions for NDE, welders, hydro packs and the repair queue (advisory only).
 
-PipeAgent should continuously answer:
+Exposed at:
+
+- `GET /api/v1/projects/{id}/compliance/nde-coverage`
+- `GET /api/v1/projects/{id}/compliance/nde-lots`
+- `GET /api/v1/projects/{id}/compliance/execution-brief`
+- `GET /api/v1/projects/{id}/test-packages/{id}/hydro-clearance`
+
+Desktop: NDT tab KPI **NDE Coverage Gaps** and **NDE Lot (B31.3)**. Dashboard smart hints consume the same brief.
+
+## Moat we keep
+
+The OS question remains:
 
 > **What should the project team do next, why, what evidence supports it, and what happens if we do nothing?**
 
-That is the intended competitive moat.
+Code compliance feeds that question. It does not auto-approve WPS, NDE or hydrotest.

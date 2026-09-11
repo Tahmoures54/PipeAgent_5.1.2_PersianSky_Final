@@ -348,6 +348,10 @@ class IFCAdapter:
             "status": "Inventory parsed safely with streaming engine.",
         }
 
+    def inventory(self, file_path: Union[str, Path]) -> Dict[str, Any]:
+        """Alias used by the enterprise API."""
+        return self.extract_inventory(file_path)
+
 
 # ──────────────────────────────────────────────
 #  3. Bidirectional External Mapping Service

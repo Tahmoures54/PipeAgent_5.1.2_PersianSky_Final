@@ -3,7 +3,7 @@
 ## Verified in build environment
 
 - [x] Python compile check (`python -m compileall -q .`)
-- [x] Automated tests: **14 passed**
+- [x] Automated tests: **26 passed**
 - [x] FastAPI `/health` smoke test: **200 OK**
 - [x] SQLite database initialization
 - [x] Enterprise execution graph persistence

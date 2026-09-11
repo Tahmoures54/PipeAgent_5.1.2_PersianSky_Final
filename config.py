@@ -1,14 +1,36 @@
 # -*- coding: utf-8 -*-
-# config.py – PipeAgent v5.0
+# config.py – PipeAgent v5.2.6
 
 from __future__ import annotations
 import os
 from pathlib import Path
 from dataclasses import dataclass
 
+
+def _load_dotenv(path: Path) -> None:
+    """Load KEY=VALUE pairs from a local .env without overriding the process env."""
+    if not path.is_file():
+        return
+    try:
+        for raw in path.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            value = value.strip().strip("'").strip('"')
+            if key:
+                os.environ.setdefault(key, value)
+    except OSError:
+        return
+
+
+PROJECT_ROOT = Path(__file__).parent.resolve()
+_load_dotenv(PROJECT_ROOT / ".env")
+
 ORG_NAME = "PipeAgent"
 APP_NAME = "PipeAgent"
-APP_VERSION = "5.2.3"
+APP_VERSION = "5.2.6"
 SUPPORT_EMAIL = ""
 WHATSAPP_SUPPORT_PHONE = "+989160684552"
 WHATSAPP_SUPPORT_URL = "https://wa.me/989160684552"
@@ -18,7 +40,6 @@ BRAND_TAGLINE = "Know What’s Next. Control What Matters."
 PRODUCT_POSITIONING = "Piping Execution Operating System"
 BRAND_SUPPORT_LINE = "Connect the field. Predict the risk. Control the execution."
 
-PROJECT_ROOT = Path(__file__).parent.resolve()
 DATABASE_NAME = "pipeagent.db"
 DATABASE_PATH = PROJECT_ROOT / DATABASE_NAME
 DATABASE_URL = os.getenv("PIPEAGENT_DATABASE_URL", f"sqlite:///{DATABASE_PATH}")
@@ -34,8 +55,12 @@ for d in (LOG_DIR, BACKUP_DIR, EXPORT_DIR, DOCUMENTS_DIR):
     d.mkdir(parents=True, exist_ok=True)
 
 LOG_FILE = str(LOG_DIR / "pipeagent.log")
-LOG_LEVEL = "INFO"
+LOG_LEVEL = os.getenv("PIPEAGENT_LOG_LEVEL", "INFO")
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+LOG_MAX_BYTES = int(os.getenv("PIPEAGENT_LOG_MAX_BYTES", str(10 * 1024 * 1024)))
+LOG_BACKUP_COUNT = int(os.getenv("PIPEAGENT_LOG_BACKUP_COUNT", "5"))
+LOG_AS_JSON = os.getenv("PIPEAGENT_LOG_AS_JSON", "false").lower() == "true"
+LOG_TO_CONSOLE = os.getenv("PIPEAGENT_LOG_TO_CONSOLE", "true").lower() == "true"
 
 SEARCH_DEBOUNCE_MS = 300
 DEFAULT_PAGE_SIZE = 100
@@ -145,11 +170,11 @@ THEMES = {
     "light": {"background": "#ffffff", "foreground": "#000000", "accent": "#0078d7"},
 }
 
-OPENAI_API_KEY = ""
-AI_MODEL = "gpt-4o-mini"
-AI_ENABLED = True
-AI_MODE = "hybrid"  # hybrid | local | cloud
-AI_TIMEOUT_SECONDS = 30
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+AI_MODEL = os.getenv("PIPEAGENT_AI_MODEL", "gpt-4o-mini")
+AI_ENABLED = os.getenv("PIPEAGENT_AI_ENABLED", "true").lower() == "true"
+AI_MODE = os.getenv("PIPEAGENT_AI_MODE", "hybrid")  # hybrid | local | cloud
+AI_TIMEOUT_SECONDS = int(os.getenv("PIPEAGENT_AI_TIMEOUT", "30"))
 
 # Enterprise integration configuration
 API_HOST = os.getenv("PIPEAGENT_API_HOST", "127.0.0.1")
@@ -160,3 +185,7 @@ OIDC_AUDIENCE = os.getenv("PIPEAGENT_OIDC_AUDIENCE", APP_NAME)
 OIDC_REQUIRED = os.getenv("PIPEAGENT_OIDC_REQUIRED", "false").lower() == "true"
 INTEGRATION_TIMEOUT_SECONDS = int(os.getenv("PIPEAGENT_INTEGRATION_TIMEOUT", "20"))
 SYNC_BATCH_SIZE = int(os.getenv("PIPEAGENT_SYNC_BATCH_SIZE", "100"))
+BIM_IMPORT_ROOT = Path(os.getenv("PIPEAGENT_BIM_ROOT", str(DOCUMENTS_DIR))).expanduser()
+API_TOKEN_PEPPER = os.getenv("PIPEAGENT_API_TOKEN_PEPPER", "")
+BOOTSTRAP_ADMIN_PASSWORD = os.getenv("PIPEAGENT_BOOTSTRAP_ADMIN_PASSWORD")
+ALLOW_INSECURE_DEFAULTS = os.getenv("PIPEAGENT_ALLOW_INSECURE_DEFAULTS", "true").lower() == "true"

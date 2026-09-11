@@ -121,118 +121,16 @@ class PipingRuleEngine:
         session: Session,
         allow_minor_warnings: bool = False,
     ) -> Tuple[bool, List[str]]:
-        """
-        ارزیابی سخت‌گیرانه و چندبعدی آمادگی پکیج برای هیدروتست طبق استاندارد ASME B31.3 (بند ۳۴۵):
-        ۱. صفر بودن پانچ‌های باز دسته A در پکیج
-        ۲. ترخیص ۱۰۰٪ سرجوش‌ها از NDT (عدم وجود تست‌های مردود یا بلاتکلیف)
-        ۳. تکمیل عملیات حرارتی (PWHT) برای سرجوش‌های مشمول
-        ۴. قفل بودن پین ساپورت‌های فنری برای ممانعت از شکست زیر وزن آب
-        ۵. بررسی وضعیت ترکمتر فلنج‌های داخل مرز تست
-        """
-        from db.models import (
-            TestPackage, Weld, NDTRecord, PunchItem,
-            SpringHangerRecord, FlangeTorqueRecord, LineListItem
-        )
+        """ASME B31.3 hydrotest gate against punch, NDE, PWHT and coverage evidence."""
+        from services.code_compliance import hydrotest_clearance
 
-        violations: List[RuleViolation] = []
-        tp = session.get(TestPackage, test_package_id)
-        if not tp:
-            return False, [f"TestPackage #{test_package_id} not found."]
-
-        project_id = tp.project_id
-        lines_raw = (getattr(tp, "line_numbers", "") or "").replace(";", ",")
-        package_lines = [l.strip().upper() for l in lines_raw.split(",") if l.strip()]
-
-        # Implementation note.
-        open_punch_a = session.query(PunchItem).filter(
-            PunchItem.project_id == project_id,
-            PunchItem.category == "A",
-            PunchItem.status.notin_(["QC_CLEARED", "CLIENT_ACCEPTED", "CLOSED", "CANCELLED"]),
-            or_(
-                PunchItem.test_package_id == test_package_id,
-                PunchItem.line_number.in_(package_lines) if package_lines else False,
-            ),
-        ).all()
-
-        if open_punch_a:
-            violations.append(RuleViolation(
-                category=RuleCategory.HYDROTEST_GATE,
-                severity=RuleSeverity.CRITICAL_BLOCKER,
-                code="HYD-001-PUNCH-A",
-                message=f"{len(open_punch_a)} open Category-A punch item(s) exist on test package '{tp.package_number}'.",
-                prescriptive_action="Clear and sign off all Category-A punches before introducing test water.",
-            ))
-
-        # Implementation note.
-        welds_in_tp = session.query(Weld).filter(
-            Weld.project_id == project_id,
-            or_(
-                Weld.test_package_id == test_package_id,
-                Weld.line_number.in_(package_lines) if package_lines else False,
-            ),
-        ).all()
-
-        # Implementation note.
-        for w in welds_in_tp:
-            w_no = getattr(w, "weld_number", f"W-{w.id}")
-            
-            # Implementation note.
-            has_failed_ndt = session.query(NDTRecord).filter(
-                NDTRecord.weld_id_fk == w.id,
-                NDTRecord.result.in_(["Fail", "Rejected", "REJ", "FAIL"]),
-            ).first()
-            if has_failed_ndt:
-                violations.append(RuleViolation(
-                    category=RuleCategory.HYDROTEST_GATE,
-                    severity=RuleSeverity.CRITICAL_BLOCKER,
-                    code="HYD-002-NDT-REJECTED",
-                    message=f"Weld '{w_no}' on line '{w.line_number}' has REJECTED NDT inspection ({has_failed_ndt.ndt_method}).",
-                    entity_key=str(w.id),
-                    prescriptive_action="Excavate defect, re-weld and obtain accepted NDT clearance report.",
-                ))
-
-            # Implementation note.
-            if w.status not in ["NDT_CLEARED", "COMPLETED", "VT_ACCEPTED"] and getattr(w, "ndt_status", "") != "ACCEPTED":
-                violations.append(RuleViolation(
-                    category=RuleCategory.HYDROTEST_GATE,
-                    severity=RuleSeverity.CRITICAL_BLOCKER,
-                    code="HYD-003-NDT-PENDING",
-                    message=f"Weld '{w_no}' lacks final NDT acceptance (Current status: {w.status}).",
-                    entity_key=str(w.id),
-                    prescriptive_action="Perform required VT/RT/UT and update Weld Register prior to testing.",
-                ))
-
-            # Implementation note.
-            if getattr(w, "pwht_required", False) is True and getattr(w, "pwht_done", False) is False:
-                violations.append(RuleViolation(
-                    category=RuleCategory.HYDROTEST_GATE,
-                    severity=RuleSeverity.CRITICAL_BLOCKER,
-                    code="HYD-004-PWHT-MISSING",
-                    message=f"Weld '{w_no}' requires PWHT stress relief which has NOT been executed.",
-                    entity_key=str(w.id),
-                    prescriptive_action="Execute PWHT heat cycle, verify hardness and attach chart before testing.",
-                ))
-
-        # Implementation note.
-        unlocked_hangers = session.query(SpringHangerRecord).filter(
-            SpringHangerRecord.project_id == project_id,
-            SpringHangerRecord.line_number.in_(package_lines) if package_lines else False,
-            SpringHangerRecord.travel_stop_removed == True,
-        ).all()
-
-        if unlocked_hangers:
-            violations.append(RuleViolation(
-                category=RuleCategory.HYDROTEST_GATE,
-                severity=RuleSeverity.WARNING,
-                code="HYD-005-HANGER-UNLOCKED",
-                message=f"{len(unlocked_hangers)} spring hanger(s) have travel stop pins removed. (Pins must be locked during water fill).",
-                prescriptive_action="Insert temporary travel stops to protect springs against hydrotest water weight.",
-            ))
-
-        report_messages = [v.message for v in violations]
-        is_passed = not any(v.severity == RuleSeverity.CRITICAL_BLOCKER for v in violations)
-
-        return is_passed, report_messages
+        report = hydrotest_clearance(session, test_package_id)
+        messages = list(report.get("blockers") or [])
+        if not allow_minor_warnings:
+            messages.extend(report.get("warnings") or [])
+        elif report.get("warnings"):
+            messages.extend(f"WARNING: {item}" for item in report["warnings"])
+        return bool(report.get("can_proceed")), messages
 
     # ══════════════════════════════════════════════
     # Implementation note.
@@ -259,10 +157,7 @@ class PipingRuleEngine:
         from db.models import Welder
 
         query = session.query(Welder).filter(
-            or_(
-                Welder.stencil == welder_stencil.strip().upper(),
-                getattr(Welder, "stencil_no", "") == welder_stencil.strip().upper(),
-            )
+            Welder.stencil_number == welder_stencil.strip().upper(),
         )
         if project_id:
             query = query.filter(Welder.project_id == project_id)
@@ -282,7 +177,7 @@ class PipingRuleEngine:
             return False, f"Welder qualification expired on {expiry}."
 
         # Implementation note.
-        last_weld = getattr(welder, "last_welding_date", None)
+        last_weld = getattr(welder, "last_welded_date", None) or getattr(welder, "last_welding_date", None)
         if last_weld and (today - last_weld).days > 180:
             return False, f"Welder failed 6-month continuity rule (Inactive for {(today - last_weld).days} days)."
 
@@ -299,6 +194,9 @@ class PipingRuleEngine:
             min_d = getattr(welder, "qualified_diameter_min_inch", 0.0) or 0.0
             if diameter_inch < min_d:
                 return False, f"Pipe diameter ({diameter_inch} in) is below welder qualified minimum ({min_d} in)."
+            max_d = getattr(welder, "qualified_diameter_max_inch", None)
+            if max_d and diameter_inch > float(max_d):
+                return False, f"Pipe diameter ({diameter_inch} in) exceeds welder qualified maximum ({max_d} in)."
 
         # Implementation note.
         pos_upper = position.strip().upper()
@@ -414,7 +312,7 @@ class PipingRuleEngine:
         ۳. عدم قرارگیری در وضعیت قرنطینه
         ۴. پاس شدن آزمون آنالیز آلیاژی PMI (در صورت انجام)
         """
-        from db.models import MaterialItem, PMITestRecord
+        from db.models import MaterialItem, PMIRecord
 
         heat_clean = heat_number.strip().upper()
         mat = session.query(MaterialItem).filter(
@@ -432,9 +330,9 @@ class PipingRuleEngine:
             return False, f"MTR / Mill Test Certificate for Heat '{heat_clean}' has not been received or verified."
 
         # Implementation note.
-        failed_pmi = session.query(PMITestRecord).filter(
-            func.upper(PMITestRecord.heat_number) == heat_clean,
-            PMITestRecord.status.in_(["REJECTED", "Reject", "FAIL"]),
+        failed_pmi = session.query(PMIRecord).filter(
+            func.upper(PMIRecord.heat_number) == heat_clean,
+            PMIRecord.result.in_(["REJECTED", "Reject", "FAIL", "Fail"]),
         ).first()
 
         if failed_pmi:

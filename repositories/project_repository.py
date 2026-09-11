@@ -153,13 +153,12 @@ class ProjectRepository(BaseRepository[Project]):
                 )
 
                 session.add(new_project)
-                session.commit()
+                session.flush()
                 session.refresh(new_project)
                 return new_project
 
             except SQLAlchemyError as e:
-                session.rollback()
-                logger.error(f"Error creating project {project_code}: {e}")
+                logger.error("Error creating project %s: %s", project_code, e)
                 raise
 
     def update_status(
@@ -177,14 +176,16 @@ class ProjectRepository(BaseRepository[Project]):
 
                 old_status = project.status
                 project.status = new_status.value
-
-                session.commit()
+                session.flush()
                 session.refresh(project)
+                logger.info(
+                    "Project #%s status %s -> %s by %s (%s)",
+                    project_id, old_status, new_status.value, updated_by, remarks,
+                )
                 return project
 
             except SQLAlchemyError as e:
-                session.rollback()
-                logger.error(f"Failed to update status for project #{project_id}: {e}")
+                logger.error("Failed to update status for project #%s: %s", project_id, e)
                 raise
 
     def soft_delete_or_archive(
@@ -204,11 +205,9 @@ class ProjectRepository(BaseRepository[Project]):
                 else:
                     project.soft_delete()
 
-                session.commit()
                 return True
             except SQLAlchemyError as e:
-                session.rollback()
-                logger.error(f"Error archiving/deleting project #{project_id}: {e}")
+                logger.error("Error archiving/deleting project #%s: %s", project_id, e)
                 raise
 
     def get_project_executive_summary(self, project_id: int) -> Dict[str, Any]:

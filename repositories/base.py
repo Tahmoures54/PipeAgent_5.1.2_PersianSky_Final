@@ -70,11 +70,10 @@ class BaseRepository(Generic[T]):
         مقداردهی اولیه مخزن با سشن فعال یا مدیر دیتابیس.
         """
         if hasattr(session_or_db, "get_session"):
-            # Implementation note.
+            # DatabaseManager path: do not open a leaked session here.
             self._db_manager: Optional[DatabaseManager] = session_or_db
-            self._session: Session = session_or_db.get_session()
+            self._session: Optional[Session] = None
         else:
-            # Implementation note.
             self._db_manager = None
             self._session = session_or_db  # type: ignore
 
@@ -82,12 +81,16 @@ class BaseRepository(Generic[T]):
 
     @property
     def session(self) -> Session:
-        """دسترسی مستقیم به Session فعال."""
+        """Access the active Session, opening one lazily when backed by DatabaseManager."""
+        if self._session is None:
+            if self._db_manager is None:
+                raise RuntimeError("Repository has no session or database manager.")
+            self._session = self._db_manager.get_session()
         return self._session
 
     def _session_callable(self):
         """Backward-compatible context manager for legacy repositories."""
-        return self._session
+        return self.session
 
     # ══════════════════════════════════════════
     #  1. Read / Query Operations
@@ -215,6 +218,8 @@ class BaseRepository(Generic[T]):
         """
         self.session.add(obj)
         self.session.flush()
+        if self._db_manager is not None:
+            self.session.commit()
         return obj
 
     def create_from_dict(self, **kwargs: Any) -> T:
@@ -249,6 +254,9 @@ class BaseRepository(Generic[T]):
             self.session.add_all(batch)
             self.session.flush()
 
+        if self._db_manager is not None:
+            self.session.commit()
+
         logger.debug(
             "Bulk created %d records for %s", total, self.model_class.__name__
         )
@@ -264,6 +272,8 @@ class BaseRepository(Generic[T]):
         """
         merged = self.session.merge(obj)
         self.session.flush()
+        if self._db_manager is not None:
+            self.session.commit()
         return merged
 
     def update_by_id(
@@ -312,6 +322,8 @@ class BaseRepository(Generic[T]):
         """
         self.session.delete(obj)
         self.session.flush()
+        if self._db_manager is not None:
+            self.session.commit()
 
     def delete_by_id(self, id_: Any) -> bool:
         """

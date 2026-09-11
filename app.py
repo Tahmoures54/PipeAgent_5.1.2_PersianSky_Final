@@ -4,7 +4,7 @@
 PipeAgent — Piping Execution Operating System
 ═══════════════════════════════════════════════════════════
 Startup Orchestrator
-Version : 5.2.3 (Production)
+Version : 5.2.4 (Production)
 Engine  : PyQt6
 
 Startup Contract

@@ -1,8 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-db/models.py – PipeAgent v5.1
+db/models.py – PipeAgent v5.2.5
 ==============================
 Complete SQLAlchemy ORM model registry for the PipeAgent platform.
+
+Column naming:
+  id              surrogate primary key
+  *_id            integer foreign key to that table's id
+  *_number/_code  business identifier (weld map, WPS, NCR, MCC, …)
+  *_barg / *_c / *_mm / *_pct  quantities with unit suffix
+Legacy Python attributes are kept as SQLAlchemy synonyms.
 """
 
 from __future__ import annotations
@@ -27,6 +34,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import (
     DeclarativeBase,
     relationship,
+    synonym,
 )
 
 logger = logging.getLogger(__name__)
@@ -101,6 +109,8 @@ class User(Base, TimestampMixin, ReprMixin):
     full_name = Column(String(150), default="")
     company = Column(String(150), default="")
     phone = Column(String(50), default="")
+    email = Column(String(255), nullable=True, index=True)
+    auth_provider = Column(String(40), default="local")
     last_login = Column(DateTime, nullable=True)
 
     audit_logs = relationship("AuditLog", back_populates="user", lazy="dynamic")
@@ -130,6 +140,13 @@ class Project(Base, TimestampMixin, ReprMixin, SoftDeleteMixin):
     client = Column(String(200))
     contractor = Column(String(200))
     standard = Column(String(100))
+    status = Column(String(40), default="ACTIVE", nullable=False, index=True)
+    project_type = Column(String(50))
+    contract_number = Column(String(100), index=True)
+    site_location = Column(String(200))
+    start_date = Column(Date)
+    target_completion_date = Column(Date)
+    design_code = synonym("standard")
 
     areas = relationship("Area", back_populates="project", cascade="all, delete-orphan")
     line_items = relationship("LineListItem", back_populates="project", cascade="all, delete-orphan")
@@ -216,8 +233,20 @@ class LineListItem(Base, TimestampMixin, ReprMixin):
     pwht_required = Column(Boolean, default=False)
     from_point = Column(String(150))
     to_point = Column(String(150))
+    corrosion_allowance_mm = Column(Float)
+    ndt_percent_pt = Column(Float, default=0)
+    ndt_percent_mt = Column(Float, default=0)
+    insulation_thickness_mm = Column(Float)
+    sour_service = Column(Boolean, default=False)
+    dn = Column(String(30))
+    pcf_number = Column(String(100))
+    isometric_revision = Column(String(20))
     status = Column(String(30), default="Active", index=True)
     remarks = Column(Text)
+    pandid_number = synonym("pid_number")
+    line_class = synonym("pipe_class")
+    from_equipment = synonym("from_point")
+    to_equipment = synonym("to_point")
 
     project = relationship("Project", back_populates="line_items")
     area = relationship("Area", back_populates="line_items")
@@ -269,7 +298,8 @@ class MaterialItem(Base, ReprMixin):
     po_id = Column(Integer, ForeignKey("purchase_orders.id", ondelete="SET NULL"), nullable=True)
     material_type = Column(String(100), nullable=False)
     spec_grade = Column(String(200))
-    size = Column(String(50))
+    size_nps = Column(String(50))
+    size = synonym("size_nps")
     heat_number = Column(String(100), index=True)
     batch_number = Column(String(100))
     quantity_received = Column(Float, default=0)
@@ -297,7 +327,8 @@ class MaterialTakeOff(Base, CreatedOnlyMixin, ReprMixin):
     material_type = Column(String(100), nullable=False)
     description = Column(String(300))
     spec_grade = Column(String(200))
-    size = Column(String(50))
+    size_nps = Column(String(50))
+    size = synonym("size_nps")
     quantity_required = Column(Float, default=0)
     quantity_issued = Column(Float, default=0)
     quantity_installed = Column(Float, default=0)
@@ -349,7 +380,8 @@ class MaterialReceiptRecord(Base, CreatedOnlyMixin, ReprMixin):
     mrir_number = Column(String(100), unique=True, nullable=False, index=True)
     po_number = Column(String(100), index=True)
     supplier = Column(String(200))
-    delivery_note_no = Column(String(100))
+    delivery_note_number = Column(String(100))
+    delivery_note_no = synonym("delivery_note_number")
     received_date = Column(Date, default=date.today)
     inspector = Column(String(100))
     visual_inspection = Column(String(30), default="Pass")
@@ -363,11 +395,12 @@ class MaterialReceiptRecord(Base, CreatedOnlyMixin, ReprMixin):
 
 class MaterialIssueRecord(Base, CreatedOnlyMixin, ReprMixin):
     __tablename__ = "material_issue_records"
-    _repr_fields = ("id", "issue_slip_no", "status")
+    _repr_fields = ("id", "issue_slip_number", "status")
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    issue_slip_no = Column(String(100), unique=True, nullable=False, index=True)
+    issue_slip_number = Column(String(100), unique=True, nullable=False, index=True)
+    issue_slip_no = synonym("issue_slip_number")
     line_number = Column(String(100), index=True)
     spool_number = Column(String(100), index=True)
     material_item_id = Column(Integer, ForeignKey("material_items.id", ondelete="SET NULL"), nullable=True)
@@ -431,16 +464,25 @@ class SpoolErectionRecord(Base, CreatedOnlyMixin, ReprMixin):
 
 class WPS_PQR(Base, ReprMixin):
     __tablename__ = "wps_pqr"
-    _repr_fields = ("id", "wps_id")
+    _repr_fields = ("id", "wps_number")
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    wps_id = Column(String(100), unique=True, nullable=False, index=True)
-    pqr_id = Column(String(100), nullable=True)
+    wps_number = Column(String(100), unique=True, nullable=False, index=True)
+    wps_id = synonym("wps_number")
+    pqr_number = Column(String(100), nullable=True)
+    pqr_id = synonym("pqr_number")
     description = Column(Text)
     welding_process = Column(String(50))
     base_material = Column(String(200))
     filler_material = Column(String(200))
+    p_number = Column(String(20))
+    f_number = Column(String(20))
+    a_number = Column(String(20))
+    thickness_min_mm = Column(Float)
+    thickness_max_mm = Column(Float)
+    position = Column(String(30))
+    gas_backing = Column(Boolean, default=False)
     preheat_min_c = Column(Float)
     interpass_max_c = Column(Float)
     pwht_required = Column(Boolean, default=False)
@@ -452,20 +494,28 @@ class WPS_PQR(Base, ReprMixin):
 
 class Weld(Base, TimestampMixin, ReprMixin, SoftDeleteMixin):
     __tablename__ = "welds"
-    _repr_fields = ("id", "weld_id", "status")
+    _repr_fields = ("id", "weld_number", "status")
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     spool_id = Column(Integer, ForeignKey("spools.id", ondelete="SET NULL"), nullable=True)
     area_id = Column(Integer, ForeignKey("areas.id", ondelete="SET NULL"), nullable=True)
-    weld_id = Column(String(100), unique=True, nullable=False, index=True)
+    weld_number = Column(String(100), unique=True, nullable=False, index=True)
+    weld_id = synonym("weld_number")
     weld_type = Column(String(30), default="Shop", index=True)
     line_number = Column(String(100), index=True)
     iso_number = Column(String(100), index=True)
     joint_type = Column(String(50))
-    size = Column(String(50))
+    size_nps = Column(String(50))
+    size = synonym("size_nps")
     wall_thickness_mm = Column(Float)
     material = Column(String(100))
+    schedule = Column(String(30))
+    welding_process = Column(String(50))
+    welding_position = Column(String(30))
+    p_number = Column(String(20))
+    group_number = Column(String(20))
+    heat_number_pipe = Column(String(100))
     wps_pqr_id = Column(Integer, ForeignKey("wps_pqr.id", ondelete="SET NULL"), nullable=True)
     welder_id = Column(String(100), index=True)
     welder_name = Column(String(150))
@@ -475,9 +525,11 @@ class Weld(Base, TimestampMixin, ReprMixin, SoftDeleteMixin):
     weld_end_datetime = Column(DateTime)
     preheat_temp_c = Column(Float)
     interpass_temp_c = Column(Float)
-    filler_heat_no = Column(String(100))
+    heat_number_filler = Column(String(100))
+    filler_heat_no = synonym("heat_number_filler")
     root_consumable = Column(String(100))
     fill_consumable = Column(String(100))
+    vt_result = Column(String(30))
     status = Column(String(30), default="Pending", index=True)
     repair_count = Column(Integer, default=0)
     pwht_done = Column(Boolean, default=False)
@@ -485,6 +537,12 @@ class Weld(Base, TimestampMixin, ReprMixin, SoftDeleteMixin):
     remarks = Column(Text)
     created_by = Column(String(100))
     updated_by = Column(String(100))
+    joint_number = synonym("weld_number")
+    drawing_number = synonym("iso_number")
+    dia_inch = synonym("size_nps")
+    welding_date = synonym("weld_end_datetime")
+    root_welder_id = synonym("welder_id")
+    cap_welder_id = synonym("welder_id")
 
     project = relationship("Project", back_populates="welds")
     spool = relationship("Spool", back_populates="shop_welds")
@@ -503,7 +561,8 @@ class JointHistory(Base, ReprMixin):
     _repr_fields = ("id", "event_type")
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    weld_id_fk = Column(Integer, ForeignKey("welds.id", ondelete="CASCADE"), nullable=False, index=True)
+    weld_id = Column(Integer, ForeignKey("welds.id", ondelete="CASCADE"), nullable=False, index=True)
+    weld_id_fk = synonym("weld_id")
     event_type = Column(String(50), nullable=False)
     old_value = Column(String(200))
     new_value = Column(String(200))
@@ -519,12 +578,21 @@ class NDTRecord(Base, CreatedOnlyMixin, ReprMixin):
     _repr_fields = ("id", "ndt_method", "result")
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    weld_id_fk = Column(Integer, ForeignKey("welds.id", ondelete="CASCADE"), nullable=False, index=True)
+    weld_id = Column(Integer, ForeignKey("welds.id", ondelete="CASCADE"), nullable=False, index=True)
+    weld_id_fk = synonym("weld_id")
     ndt_method = Column(String(10), nullable=False, index=True)
     inspection_date = Column(Date)
     inspector_id = Column(String(100), index=True)
     result = Column(String(20), default="Pending", index=True)
     report_number = Column(String(100))
+    procedure_number = Column(String(100))
+    acceptance_standard = Column(String(100))
+    technique = Column(String(80))
+    extent_pct = Column(Float)
+    indication = Column(Text)
+    film_density = Column(Float)
+    is_penalty = Column(Boolean, default=False, index=True)
+    penalty_source_weld_id = Column(Integer, nullable=True, index=True)
     remarks = Column(Text)
 
     weld = relationship("Weld", back_populates="ndt_records")
@@ -545,7 +613,8 @@ class PipeSupport(Base, CreatedOnlyMixin, ReprMixin):
     support_type = Column(String(80))
     line_number = Column(String(100), index=True)
     iso_number = Column(String(100))
-    drawing_no = Column(String(100))
+    drawing_number = Column(String(100))
+    drawing_no = synonym("drawing_number")
     location_desc = Column(String(200))
     status = Column(String(30), default="Pending", index=True)
     installed_date = Column(Date)
@@ -569,15 +638,21 @@ class TestPackage(Base, CreatedOnlyMixin, ReprMixin):
     package_number = Column(String(100), unique=True, nullable=False, index=True)
     description = Column(String(300))
     test_medium = Column(String(50), default="Water")
-    test_pressure_bar = Column(Float)
+    design_pressure_barg = Column(Float)
+    design_pressure_bar = synonym("design_pressure_barg")
+    test_pressure_barg = Column(Float)
+    test_pressure_bar = synonym("test_pressure_barg")
     test_duration_min = Column(Integer)
     test_date = Column(Date)
+    isolation_boundary = Column(Text)
+    pid_limits = Column(String(200))
     status = Column(String(30), default="Planned", index=True)
     line_numbers = Column(Text)
     punch_a_count = Column(Integer, default=0)
     punch_b_count = Column(Integer, default=0)
     punch_c_count = Column(Integer, default=0)
-    certificate_no = Column(String(100))
+    certificate_number = Column(String(100))
+    certificate_no = synonym("certificate_number")
     tested_by = Column(String(100))
     witnessed_by = Column(String(100))
     remarks = Column(Text)
@@ -620,14 +695,16 @@ class BlindListRecord(Base, CreatedOnlyMixin, ReprMixin):
 
 class TestRequest(Base, CreatedOnlyMixin, ReprMixin):
     __tablename__ = "test_requests"
-    _repr_fields = ("id", "request_no", "status")
+    _repr_fields = ("id", "request_number", "status")
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    request_no = Column(String(100), unique=True, nullable=False, index=True)
+    request_number = Column(String(100), unique=True, nullable=False, index=True)
+    request_no = synonym("request_number")
     request_type = Column(String(50), nullable=False, index=True)
     method = Column(String(50))
-    weld_id = Column(String(100), index=True)
+    weld_number = Column(String(100), index=True)
+    weld_id = synonym("weld_number")
     line_number = Column(String(100), index=True)
     spool_number = Column(String(100))
     iso_number = Column(String(100))
@@ -651,22 +728,27 @@ class TestRequest(Base, CreatedOnlyMixin, ReprMixin):
 
 class WeldReportDraft(Base, ReprMixin):
     __tablename__ = "weld_report_drafts"
-    _repr_fields = ("id", "report_no", "status")
+    _repr_fields = ("id", "report_number", "status")
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    report_no = Column(String(100), unique=True, nullable=False, index=True)
+    report_number = Column(String(100), unique=True, nullable=False, index=True)
+    report_no = synonym("report_number")
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    weld_pk = Column(Integer, ForeignKey("welds.id", ondelete="SET NULL"), nullable=True, index=True)
+    weld_id = Column(Integer, ForeignKey("welds.id", ondelete="SET NULL"), nullable=True, index=True)
+    weld_pk = synonym("weld_id")
     line_number = Column(String(100), index=True)
     iso_number = Column(String(100))
-    weld_no = Column(String(100), index=True)
-    spool_no = Column(String(100), index=True)
+    weld_number = Column(String(100), index=True)
+    weld_no = synonym("weld_number")
+    spool_number = Column(String(100), index=True)
+    spool_no = synonym("spool_number")
     welder_id = Column(String(100))
     welder_name = Column(String(150))
     weld_date = Column(Date)
     joint_type = Column(String(50))
     process = Column(String(50))
-    wps_id = Column(String(100))
+    wps_number = Column(String(100))
+    wps_id = synonym("wps_number")
     filler_material = Column(String(150))
     preheat = Column(String(50))
     visual_result = Column(String(30), default="Pending")
@@ -690,23 +772,28 @@ class WeldReportDraft(Base, ReprMixin):
 
 class WeldReport(Base, ReprMixin):
     __tablename__ = "weld_reports"
-    _repr_fields = ("id", "report_no")
+    _repr_fields = ("id", "report_number")
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     draft_id = Column(Integer, ForeignKey("weld_report_drafts.id", ondelete="CASCADE"), unique=True, nullable=False)
-    report_no = Column(String(100), unique=True, nullable=False, index=True)
+    report_number = Column(String(100), unique=True, nullable=False, index=True)
+    report_no = synonym("report_number")
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    weld_pk = Column(Integer, ForeignKey("welds.id", ondelete="SET NULL"), nullable=True)
+    weld_id = Column(Integer, ForeignKey("welds.id", ondelete="SET NULL"), nullable=True)
+    weld_pk = synonym("weld_id")
     line_number = Column(String(100), index=True)
     iso_number = Column(String(100))
-    weld_no = Column(String(100), index=True)
-    spool_no = Column(String(100))
+    weld_number = Column(String(100), index=True)
+    weld_no = synonym("weld_number")
+    spool_number = Column(String(100))
+    spool_no = synonym("spool_number")
     welder_id = Column(String(100))
     welder_name = Column(String(150))
     weld_date = Column(Date)
     joint_type = Column(String(50))
     process = Column(String(50))
-    wps_id = Column(String(100))
+    wps_number = Column(String(100))
+    wps_id = synonym("wps_number")
     filler_material = Column(String(150))
     preheat = Column(String(50))
     visual_result = Column(String(30))
@@ -727,17 +814,22 @@ class WeldReport(Base, ReprMixin):
 
 class FitupReportDraft(Base, ReprMixin):
     __tablename__ = "fitup_report_drafts"
-    _repr_fields = ("id", "report_no", "status")
+    _repr_fields = ("id", "report_number", "status")
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    report_no = Column(String(100), unique=True, nullable=False, index=True)
+    report_number = Column(String(100), unique=True, nullable=False, index=True)
+    report_no = synonym("report_number")
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    weld_pk = Column(Integer, ForeignKey("welds.id", ondelete="SET NULL"), nullable=True, index=True)
+    weld_id = Column(Integer, ForeignKey("welds.id", ondelete="SET NULL"), nullable=True, index=True)
+    weld_pk = synonym("weld_id")
     line_number = Column(String(100), index=True)
     iso_number = Column(String(100))
-    weld_no = Column(String(100), index=True)
-    spool_no = Column(String(100))
-    fitup_no = Column(String(100))
+    weld_number = Column(String(100), index=True)
+    weld_no = synonym("weld_number")
+    spool_number = Column(String(100))
+    spool_no = synonym("spool_number")
+    fitup_number = Column(String(100))
+    fitup_no = synonym("fitup_number")
     fitup_date = Column(Date)
     fitter = Column(String(150))
     contractor = Column(String(150))
@@ -760,18 +852,23 @@ class FitupReportDraft(Base, ReprMixin):
 
 class FitupReport(Base, ReprMixin):
     __tablename__ = "fitup_reports"
-    _repr_fields = ("id", "report_no")
+    _repr_fields = ("id", "report_number")
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     draft_id = Column(Integer, ForeignKey("fitup_report_drafts.id", ondelete="CASCADE"), unique=True, nullable=False)
-    report_no = Column(String(100), unique=True, nullable=False, index=True)
+    report_number = Column(String(100), unique=True, nullable=False, index=True)
+    report_no = synonym("report_number")
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    weld_pk = Column(Integer, ForeignKey("welds.id", ondelete="SET NULL"), nullable=True)
+    weld_id = Column(Integer, ForeignKey("welds.id", ondelete="SET NULL"), nullable=True)
+    weld_pk = synonym("weld_id")
     line_number = Column(String(100), index=True)
     iso_number = Column(String(100))
-    weld_no = Column(String(100), index=True)
-    spool_no = Column(String(100))
-    fitup_no = Column(String(100))
+    weld_number = Column(String(100), index=True)
+    weld_no = synonym("weld_number")
+    spool_number = Column(String(100))
+    spool_no = synonym("spool_number")
+    fitup_number = Column(String(100))
+    fitup_no = synonym("fitup_number")
     fitup_date = Column(Date)
     fitter = Column(String(150))
     contractor = Column(String(150))
@@ -863,10 +960,12 @@ class DocumentEvidence(Base, TimestampMixin, ReprMixin):
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     material_item_id = Column(Integer, ForeignKey("material_items.id", ondelete="SET NULL"), nullable=True, index=True)
-    weld_id_fk = Column(Integer, ForeignKey("welds.id", ondelete="SET NULL"), nullable=True, index=True)
+    weld_id = Column(Integer, ForeignKey("welds.id", ondelete="SET NULL"), nullable=True, index=True)
+    weld_id_fk = synonym("weld_id")
     spool_id = Column(Integer, ForeignKey("spools.id", ondelete="SET NULL"), nullable=True, index=True)
     test_package_id = Column(Integer, ForeignKey("test_packages.id", ondelete="SET NULL"), nullable=True, index=True)
-    document_id_fk = Column(Integer, ForeignKey("documents.id", ondelete="SET NULL"), nullable=True, index=True)
+    document_id = Column(Integer, ForeignKey("documents.id", ondelete="SET NULL"), nullable=True, index=True)
+    document_id_fk = synonym("document_id")
     evidence_type = Column(String(50), nullable=False, index=True)
     entity_type = Column(String(80), nullable=False, index=True)
     entity_reference = Column(String(150), index=True)
@@ -906,11 +1005,12 @@ class DocumentEvidence(Base, TimestampMixin, ReprMixin):
 
 class Transmittal(Base, CreatedOnlyMixin, ReprMixin):
     __tablename__ = "transmittals"
-    _repr_fields = ("id", "transmittal_no")
+    _repr_fields = ("id", "transmittal_number")
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    transmittal_no = Column(String(100), unique=True, nullable=False)
+    transmittal_number = Column(String(100), unique=True, nullable=False)
+    transmittal_no = synonym("transmittal_number")
     to_company = Column(String(200))
     purpose = Column(Text)
 
@@ -924,7 +1024,8 @@ class TransmittalItem(Base, ReprMixin):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     transmittal_id = Column(Integer, ForeignKey("transmittals.id", ondelete="CASCADE"), nullable=False, index=True)
-    document_id_fk = Column(Integer, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
+    document_id = Column(Integer, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
+    document_id_fk = synonym("document_id")
     revision = Column(String(10))
 
     transmittal = relationship("Transmittal", back_populates="items")
@@ -936,11 +1037,12 @@ class TransmittalItem(Base, ReprMixin):
 
 class HandoverPackage(Base, CreatedOnlyMixin, ReprMixin):
     __tablename__ = "handover_packages"
-    _repr_fields = ("id", "package_no", "status")
+    _repr_fields = ("id", "package_number", "status")
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    package_no = Column(String(100), unique=True, nullable=False, index=True)
+    package_number = Column(String(100), unique=True, nullable=False, index=True)
+    package_no = synonym("package_number")
     system_name = Column(String(200))
     subsystem = Column(String(200))
     area_id = Column(Integer, ForeignKey("areas.id", ondelete="SET NULL"), nullable=True)
@@ -1336,11 +1438,12 @@ class ExecutionForecast(Base, CreatedOnlyMixin, ReprMixin):
 
 class Welder(Base, CreatedOnlyMixin, ReprMixin):
     __tablename__ = "welders"
-    _repr_fields = ("id", "stencil_no", "full_name")
+    _repr_fields = ("id", "stencil_number", "full_name")
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    stencil_no = Column(String(50), nullable=False, index=True)
+    stencil_number = Column(String(50), nullable=False, index=True)
+    stencil_no = synonym("stencil_number")
     full_name = Column(String(150), nullable=False)
     national_id = Column(String(50))
     welding_processes = Column(String(100))
@@ -1348,11 +1451,17 @@ class Welder(Base, CreatedOnlyMixin, ReprMixin):
     qualified_thickness_min_mm = Column(Float)
     qualified_thickness_max_mm = Column(Float)
     qualified_diameter_min_inch = Column(Float)
+    qualified_diameter_max_inch = Column(Float)
     qualified_material_p_no = Column(String(50))
+    f_number = Column(String(20))
+    progression = Column(String(20))
+    backing = Column(String(20))
     wps_pqr_id = Column(Integer, ForeignKey("wps_pqr.id", ondelete="SET NULL"), nullable=True)
     qualification_date = Column(Date)
     expiry_date = Column(Date, index=True)
-    certificate_no = Column(String(100))
+    last_welded_date = Column(Date)
+    certificate_number = Column(String(100))
+    certificate_no = synonym("certificate_number")
     is_active = Column(Boolean, default=True, index=True)
     remarks = Column(Text)
 
@@ -1360,7 +1469,7 @@ class Welder(Base, CreatedOnlyMixin, ReprMixin):
     wps_pqr = relationship("WPS_PQR", back_populates="welders")
 
     __table_args__ = (
-        UniqueConstraint("project_id", "stencil_no", name="uq_welder_stencil_per_project"),
+        UniqueConstraint("project_id", "stencil_number", name="uq_welder_stencil_per_project"),
     )
 
 
@@ -1373,7 +1482,8 @@ class PunchItem(Base, CreatedOnlyMixin, ReprMixin):
     test_package_id = Column(Integer, ForeignKey("test_packages.id", ondelete="SET NULL"), nullable=True, index=True)
     line_number = Column(String(100), index=True)
     spool_number = Column(String(100))
-    weld_id = Column(String(100))
+    weld_number = Column(String(100))
+    weld_id = synonym("weld_number")
     category = Column(String(10), nullable=False, index=True)
     description = Column(Text, nullable=False)
     location_desc = Column(String(300))
@@ -1391,11 +1501,12 @@ class PunchItem(Base, CreatedOnlyMixin, ReprMixin):
 
 class NCRRecord(Base, CreatedOnlyMixin, ReprMixin):
     __tablename__ = "ncr_records"
-    _repr_fields = ("id", "ncr_no", "status")
+    _repr_fields = ("id", "ncr_number", "status")
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    ncr_no = Column(String(100), unique=True, nullable=False, index=True)
+    ncr_number = Column(String(100), unique=True, nullable=False, index=True)
+    ncr_no = synonym("ncr_number")
     item_type = Column(String(50), nullable=False)
     item_reference = Column(String(150))
     line_number = Column(String(100), index=True)
@@ -1454,10 +1565,12 @@ class ValveRecord(Base, CreatedOnlyMixin, ReprMixin):
     manufacturer = Column(String(150))
     model_number = Column(String(100))
     hydro_shell_test = Column(Boolean, default=False)
-    hydro_shell_pressure_bar = Column(Float)
+    hydro_shell_pressure_barg = Column(Float)
+    hydro_shell_pressure_bar = synonym("hydro_shell_pressure_barg")
     hydro_shell_date = Column(Date)
     hydro_seat_test = Column(Boolean, default=False)
-    hydro_seat_pressure_bar = Column(Float)
+    hydro_seat_pressure_barg = Column(Float)
+    hydro_seat_pressure_bar = synonym("hydro_seat_pressure_barg")
     hydro_seat_date = Column(Date)
     test_witness = Column(String(100))
     installed_date = Column(Date)
@@ -1478,8 +1591,10 @@ class PWHTRecord(Base, CreatedOnlyMixin, ReprMixin):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    weld_id_fk = Column(Integer, ForeignKey("welds.id", ondelete="CASCADE"), nullable=False, index=True)
-    pwht_procedure_no = Column(String(100))
+    weld_id = Column(Integer, ForeignKey("welds.id", ondelete="CASCADE"), nullable=False, index=True)
+    weld_id_fk = synonym("weld_id")
+    pwht_procedure_number = Column(String(100))
+    pwht_procedure_no = synonym("pwht_procedure_number")
     heating_method = Column(String(50))
     soak_temperature_c = Column(Float)
     soak_duration_hours = Column(Float)
@@ -1610,7 +1725,8 @@ class WrappingRecord(Base, CreatedOnlyMixin, ReprMixin):
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     line_number = Column(String(100), index=True)
     spool_number = Column(String(100), index=True)
-    weld_id = Column(String(100), index=True)
+    weld_number = Column(String(100), index=True)
+    weld_id = synonym("weld_number")
     wrapping_material = Column(String(150))
     primer_type = Column(String(100))
     overlap_pct = Column(Float, default=50.0)
@@ -1654,7 +1770,8 @@ class LeakTestRecord(Base, CreatedOnlyMixin, ReprMixin):
     test_package_id = Column(Integer, ForeignKey("test_packages.id", ondelete="SET NULL"), nullable=True, index=True)
     line_number = Column(String(100), index=True)
     test_type = Column(String(50), nullable=False, default="Hydrostatic")
-    test_pressure_bar = Column(Float)
+    test_pressure_barg = Column(Float)
+    test_pressure_bar = synonym("test_pressure_barg")
     holding_time_min = Column(Integer)
     test_medium = Column(String(50), default="Water")
     gauge_number_1 = Column(String(100))
@@ -1693,11 +1810,12 @@ class PMIRecord(Base, CreatedOnlyMixin, ReprMixin):
 
 class HardnessTestRecord(Base, CreatedOnlyMixin, ReprMixin):
     __tablename__ = "hardness_test_records"
-    _repr_fields = ("id", "weld_id_fk", "result")
+    _repr_fields = ("id", "weld_id", "result")
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    weld_id_fk = Column(Integer, ForeignKey("welds.id", ondelete="CASCADE"), nullable=True, index=True)
+    weld_id = Column(Integer, ForeignKey("welds.id", ondelete="CASCADE"), nullable=True, index=True)
+    weld_id_fk = synonym("weld_id")
     line_number = Column(String(100), index=True)
     test_method = Column(String(50), default="Vickers")
     hardness_val_base = Column(Float)
@@ -1712,11 +1830,12 @@ class HardnessTestRecord(Base, CreatedOnlyMixin, ReprMixin):
 
 class FerriteTestRecord(Base, CreatedOnlyMixin, ReprMixin):
     __tablename__ = "ferrite_test_records"
-    _repr_fields = ("id", "weld_id_fk", "result")
+    _repr_fields = ("id", "weld_id", "result")
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    weld_id_fk = Column(Integer, ForeignKey("welds.id", ondelete="CASCADE"), nullable=True, index=True)
+    weld_id = Column(Integer, ForeignKey("welds.id", ondelete="CASCADE"), nullable=True, index=True)
+    weld_id_fk = synonym("weld_id")
     line_number = Column(String(100), index=True)
     ferrite_number_fn = Column(Float)
     min_fn = Column(Float)
@@ -1729,13 +1848,15 @@ class FerriteTestRecord(Base, CreatedOnlyMixin, ReprMixin):
 
 class DimensionalCheckRecord(Base, CreatedOnlyMixin, ReprMixin):
     __tablename__ = "dimensional_check_records"
-    _repr_fields = ("id", "check_no", "result")
+    _repr_fields = ("id", "check_number", "result")
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     spool_id = Column(Integer, ForeignKey("spools.id", ondelete="CASCADE"), nullable=True, index=True)
-    check_no = Column(String(100), index=True)
-    drawing_no = Column(String(100))
+    check_number = Column(String(100), index=True)
+    check_no = synonym("check_number")
+    drawing_number = Column(String(100))
+    drawing_no = synonym("drawing_number")
     revision = Column(String(10))
     overall_length_mm = Column(Float)
     tolerance_mm = Column(Float)
@@ -1926,11 +2047,12 @@ class SpringHangerRecord(Base, CreatedOnlyMixin, ReprMixin):
 
 class TieInRecord(Base, CreatedOnlyMixin, ReprMixin):
     __tablename__ = "tie_in_records"
-    _repr_fields = ("id", "tie_in_no", "status")
+    _repr_fields = ("id", "tie_in_number", "status")
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    tie_in_no = Column(String(100), unique=True, nullable=False, index=True)
+    tie_in_number = Column(String(100), unique=True, nullable=False, index=True)
+    tie_in_no = synonym("tie_in_number")
     line_number = Column(String(100), index=True)
     existing_line = Column(String(100))
     location = Column(String(200))
@@ -2018,11 +2140,12 @@ class IsoRegistry(Base, CreatedOnlyMixin, ReprMixin):
 
 class AsBuiltRecord(Base, CreatedOnlyMixin, ReprMixin):
     __tablename__ = "asbuilt_records"
-    _repr_fields = ("id", "drawing_no", "status")
+    _repr_fields = ("id", "drawing_number", "status")
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    drawing_no = Column(String(100), index=True)
+    drawing_number = Column(String(100), index=True)
+    drawing_no = synonym("drawing_number")
     iso_number = Column(String(100), index=True)
     line_number = Column(String(100), index=True)
     revision = Column(String(20), default="0")
@@ -2041,12 +2164,13 @@ class AsBuiltRecord(Base, CreatedOnlyMixin, ReprMixin):
 
 class AsBuiltMarkUp(Base, CreatedOnlyMixin, ReprMixin):
     __tablename__ = "asbuilt_markups"
-    _repr_fields = ("id", "drawing_no", "markup_type", "status")
+    _repr_fields = ("id", "drawing_number", "markup_type", "status")
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     asbuilt_record_id = Column(Integer, ForeignKey("asbuilt_records.id", ondelete="CASCADE"), nullable=True, index=True)
-    drawing_no = Column(String(100), index=True)
+    drawing_number = Column(String(100), index=True)
+    drawing_no = synonym("drawing_number")
     line_number = Column(String(100), index=True)
     iso_number = Column(String(100), index=True)
     markup_type = Column(String(50), default="Redline")
@@ -2071,7 +2195,8 @@ class WeldMapEntry(Base, CreatedOnlyMixin, ReprMixin):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    weld_id_fk = Column(Integer, ForeignKey("welds.id", ondelete="CASCADE"), nullable=True, index=True)
+    weld_id = Column(Integer, ForeignKey("welds.id", ondelete="CASCADE"), nullable=True, index=True)
+    weld_id_fk = synonym("weld_id")
     iso_number = Column(String(100), nullable=False, index=True)
     sheet_number = Column(String(20), default="1")
     line_number = Column(String(100), index=True)
@@ -2093,7 +2218,7 @@ class WeldMapEntry(Base, CreatedOnlyMixin, ReprMixin):
 
 class WalkdownChecklist(Base, CreatedOnlyMixin, ReprMixin):
     __tablename__ = "walkdown_checklists"
-    _repr_fields = ("id", "walkdown_no", "status")
+    _repr_fields = ("id", "walkdown_number", "status")
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -2101,7 +2226,8 @@ class WalkdownChecklist(Base, CreatedOnlyMixin, ReprMixin):
     line_number = Column(String(100), index=True)
     iso_number = Column(String(100), index=True)
     test_package_id = Column(Integer, ForeignKey("test_packages.id", ondelete="SET NULL"), nullable=True, index=True)
-    walkdown_no = Column(String(100), unique=True, nullable=False, index=True)
+    walkdown_number = Column(String(100), unique=True, nullable=False, index=True)
+    walkdown_no = synonym("walkdown_number")
     walkdown_type = Column(String(50), default="Pre-Hydro")
     inspection_date = Column(Date, default=date.today)
     lead_inspector = Column(String(100))
@@ -2170,11 +2296,12 @@ class CalibrationRecord(Base, CreatedOnlyMixin, ReprMixin):
 
 class MCCRecord(Base, CreatedOnlyMixin, ReprMixin):
     __tablename__ = "mcc_records"
-    _repr_fields = ("id", "mcc_no", "status")
+    _repr_fields = ("id", "mcc_number", "status")
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    mcc_no = Column(String(100), unique=True, nullable=False, index=True)
+    mcc_number = Column(String(100), unique=True, nullable=False, index=True)
+    mcc_no = synonym("mcc_number")
     system_name = Column(String(200))
     subsystem = Column(String(200))
     scope_description = Column(Text)
