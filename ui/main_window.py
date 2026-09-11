@@ -50,12 +50,22 @@ from config import (
 from db.manager import DatabaseManager
 from security.session import SessionManager
 from services.license import check_license, format_license_status, get_license_info
+from services.module_access import (
+    access_matrix_text,
+    accessible_modules,
+    can_access_module,
+    can_backup_database,
+    can_manage_users,
+    first_allowed_module,
+    role_label,
+)
 
 # ── Tab Imports ───────────────────────────────────────────
 from ui.tabs.dashboard_tab import DashboardTab
 from ui.tabs.project_setup_tab import ProjectSetupTab
 from ui.tabs.line_list_tab import LineListTab
 from ui.tabs.documents_tab import DocumentsTab
+from ui.tabs.technical_query_tab import TechnicalQueryTab
 from ui.tabs.procurement_tab import ProcurementTab
 from ui.tabs.spooling_tab import SpoolingTab
 from ui.tabs.joints_tab import JointsTab
@@ -380,12 +390,51 @@ class CollapsibleSidebar(QFrame):
         text_lower = text.lower().strip()
         for widget in self._all_nav_widgets:
             if isinstance(widget, QToolButton):
+                if widget.property("accessHidden"):
+                    widget.setVisible(False)
+                    continue
                 nav_text = (widget.property("navText") or "").lower()
                 widget.setVisible(text_lower in nav_text or text_lower == "")
             elif isinstance(widget, QLabel) and widget.objectName() == "navGroupLabel":
-                widget.setVisible(text_lower == "")
+                widget.setVisible(text_lower == "" and not widget.property("accessHidden"))
             elif isinstance(widget, QFrame) and widget.objectName() == "navSeparator":
-                widget.setVisible(text_lower == "")
+                widget.setVisible(text_lower == "" and not widget.property("accessHidden"))
+
+    def apply_access(self, allowed: set[str]) -> None:
+        """Show only modules the signed-in role may open."""
+        pending_group: Optional[QLabel] = None
+        pending_sep: Optional[QFrame] = None
+        group_has_visible = False
+
+        def flush_group():
+            nonlocal pending_group, pending_sep, group_has_visible
+            if pending_group is not None:
+                pending_group.setVisible(group_has_visible)
+                pending_group.setProperty("accessHidden", not group_has_visible)
+            if pending_sep is not None:
+                pending_sep.setVisible(group_has_visible)
+                pending_sep.setProperty("accessHidden", not group_has_visible)
+            pending_group = None
+            pending_sep = None
+            group_has_visible = False
+
+        for widget in self._all_nav_widgets:
+            if isinstance(widget, QLabel) and widget.objectName() == "navGroupLabel":
+                flush_group()
+                pending_group = widget
+                group_has_visible = False
+            elif isinstance(widget, QFrame) and widget.objectName() == "navSeparator":
+                pending_sep = widget
+                flush_group()
+            elif isinstance(widget, QToolButton):
+                key = widget.property("navKey") or ""
+                visible = key in allowed
+                widget.setEnabled(visible)
+                widget.setVisible(visible)
+                widget.setProperty("accessHidden", not visible)
+                if visible:
+                    group_has_visible = True
+        flush_group()
 
 
 # ═══════════════════════════════════════════════════════════
@@ -512,7 +561,7 @@ class BackupService:
 class MainWindow(QMainWindow):
     """PipeAgent — Piping Execution Operating System Shell."""
 
-    # Navigation Structure (10 groups, 31 modules)
+    # Navigation Structure (10 groups, 32 modules)
     NAV_STRUCTURE = [
         ("COMMAND CENTER", [
             ("⌂", "Dashboard",              "dashboard",        "Ctrl+D"),
@@ -521,6 +570,7 @@ class MainWindow(QMainWindow):
         ("ENGINEERING", [
             ("≡", "Line List",              "line_list",        "Ctrl+Shift+L"),
             ("◈", "Document Control",       "documents",        "Ctrl+Shift+D"),
+            ("?", "Technical Query",        "technical_query",  "Ctrl+Shift+Q"),
             ("⇄", "Data Exchange",          "data_exchange",    "Ctrl+E"),
         ]),
         ("PROCUREMENT", [
@@ -572,6 +622,7 @@ class MainWindow(QMainWindow):
         ("project",          ProjectSetupTab),
         ("line_list",        LineListTab),
         ("documents",        DocumentsTab),
+        ("technical_query",  TechnicalQueryTab),
         ("data_exchange",    DataExchangeTab),
         ("procurement",      ProcurementTab),
         ("spooling",         SpoolingTab),
@@ -631,6 +682,7 @@ class MainWindow(QMainWindow):
         self._build_module_actions()
         self._setup_ui()
         self._create_menu_bar()
+        self._apply_module_access()
 
         # Deferred loading
         self._tabs_loaded = False
@@ -727,12 +779,12 @@ class MainWindow(QMainWindow):
         QFrame#topbar { background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #087F8C,stop:0.55 #13A7B5,stop:1 #55C7D0); border-bottom: 1px solid #08727D; }
         QLabel#brand { color: white; font-size: 22px; font-weight: 900; letter-spacing: 1px; background: transparent; }
         QLabel#brandSub { color: #DDFBFD; font-size: 10px; font-weight: 800; letter-spacing: 2px; background: transparent; }
-        QLabel#userBadge { color: #075D67; background: #E8FAFB; border: 1px solid #A9E4E8; border-radius: 14px; padding: 6px 14px; font-weight: 700; font-size: 12px; }
-        QLabel#liveIndicator { color: #EFFFFF; font-size: 10px; font-weight: 800; padding: 5px 10px; background: transparent; }
-        QPushButton#topAction { background: rgba(255,255,255,0.14); color: white; border: 1px solid rgba(255,255,255,0.32); border-radius: 8px; padding: 7px 13px; font-weight: 700; font-size: 11px; }
-        QPushButton#topAction:hover { background: rgba(255,255,255,0.25); border-color: white; }
-        QPushButton#supportAction { background: white; color: #087F8C; border: none; border-radius: 8px; padding: 7px 13px; font-weight: 800; }
-        QPushButton#supportAction:hover { background: #E7FAF8; color: #05616A; }
+        QLabel#userBadge { color: #075D67; background: #E8FAFB; border: 1px solid #A9E4E8; border-radius: 8px; padding: 0 14px; font-weight: 700; font-size: 12px; min-height: 36px; max-height: 36px; }
+        QLabel#liveIndicator { color: #EFFFFF; font-size: 11px; font-weight: 800; padding: 0 10px; background: transparent; min-height: 36px; }
+        QPushButton#topAction { background: rgba(255,255,255,0.16); color: white; border: 1px solid rgba(255,255,255,0.35); border-radius: 8px; padding: 0 14px; min-height: 36px; max-height: 36px; min-width: 108px; font-weight: 700; font-size: 12px; }
+        QPushButton#topAction:hover { background: rgba(255,255,255,0.28); border-color: white; }
+        QPushButton#topAction[emphasis="true"] { background: white; color: #087F8C; border: none; font-weight: 800; }
+        QPushButton#topAction[emphasis="true"]:hover { background: #E7FAF8; color: #05616A; }
         QLabel#notifBadge { background: #E05A63; color: white; font-size: 10px; font-weight: 800; border-radius: 10px; min-width: 20px; min-height: 20px; padding: 2px 6px; }
         QFrame#sidebar { background: white; border-right: 1px solid #CBE8EB; }
         QToolButton#sidebarToggle { color: #087F8C; background: #F1FBFC; border: none; border-bottom: 1px solid #CBE8EB; font-size: 13px; font-weight: 900; text-align: left; padding-left: 16px; letter-spacing: 1px; }
@@ -1045,40 +1097,49 @@ class MainWindow(QMainWindow):
         brand_box.addWidget(brand)
         brand_box.addWidget(sub)
         layout.addLayout(brand_box)
+
+        support_btn = QPushButton("Support")
+        support_btn.setObjectName("topAction")
+        support_btn.setProperty("emphasis", True)
+        support_btn.setToolTip("Open PipeAgent Support in WhatsApp Web")
+        support_btn.clicked.connect(self._open_whatsapp_support)
+        layout.addWidget(support_btn)
+
+        self._notif_btn = QPushButton("Alerts")
+        self._notif_btn.setObjectName("topAction")
+        self._notif_btn.setToolTip("Notifications (Ctrl+N)")
+        self._notif_btn.clicked.connect(self._toggle_notifications)
+        layout.addWidget(self._notif_btn)
+
+        refresh_btn = QPushButton("Refresh")
+        refresh_btn.setObjectName("topAction")
+        refresh_btn.setToolTip("Refresh current module (F5)")
+        refresh_btn.clicked.connect(self._refresh_current)
+        layout.addWidget(refresh_btn)
+
+        self._users_btn = QPushButton("Users")
+        self._users_btn.setObjectName("topAction")
+        self._users_btn.setToolTip("Users and access levels")
+        self._users_btn.clicked.connect(self._open_user_admin)
+        layout.addWidget(self._users_btn)
+
         layout.addStretch()
 
         live = QLabel("● SYSTEM ONLINE")
         live.setObjectName("liveIndicator")
         layout.addWidget(live)
 
-        support_btn = QPushButton("💬  Support")
-        support_btn.setObjectName("supportAction")
-        support_btn.setToolTip("Open PipeAgent Support in WhatsApp Web")
-        support_btn.clicked.connect(self._open_whatsapp_support)
-        layout.addWidget(support_btn)
-
-        self._notif_btn = QPushButton("🔔")
-        self._notif_btn.setObjectName("topAction")
-        self._notif_btn.setFixedSize(42, 38)
-        self._notif_btn.setToolTip("Notifications (Ctrl+N)")
-        self._notif_btn.clicked.connect(self._toggle_notifications)
-        layout.addWidget(self._notif_btn)
-
         self._notif_badge = NotificationBadge(self._notif_btn)
-        self._notif_badge.move(24, -2)
+        self._notif_badge.move(86, -2)
         self._notif_center = NotificationCenter(self)
         self._notif_center.countChanged.connect(self._notif_badge.set_count)
 
-        user = QLabel(f"👤  {self.session_manager.username}")
-        user.setObjectName("userBadge")
-        layout.addWidget(user)
-
-        # ⚠ No shortcut set here: the File menu owns the F5 shortcut.
-        refresh_btn = QPushButton("↻  Refresh")
-        refresh_btn.setObjectName("topAction")
-        refresh_btn.setToolTip("Refresh current module (F5)")
-        refresh_btn.clicked.connect(self._refresh_current)
-        layout.addWidget(refresh_btn)
+        role = role_label(self.session_manager.user_role)
+        user_name = self.session_manager.username or "Guest"
+        self._user_badge = QLabel(f"  {user_name}  ·  {role}  ")
+        self._user_badge.setObjectName("userBadge")
+        self._user_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self._user_badge)
 
         return topbar
 
@@ -1110,7 +1171,58 @@ class MainWindow(QMainWindow):
         """
         mb = self.menuBar()
 
-        # ── PipeAgent menu ────────────────────────────────
+        # Standard desktop order: File, then product, then Users / View / Help.
+        file_menu = mb.addMenu("&File")
+
+        act = QAction("Open Project Folder", self)
+        act.triggered.connect(self._open_project_folder)
+        file_menu.addAction(act)
+
+        act = QAction("Import Excel / Data", self)
+        act.setShortcut("Ctrl+Alt+I")
+        act.triggered.connect(self._open_data_exchange)
+        file_menu.addAction(act)
+
+        act = QAction("Export Full Project Pack", self)
+        act.setShortcut("Ctrl+Alt+E")
+        act.triggered.connect(self._export_project_pack)
+        file_menu.addAction(act)
+
+        file_menu.addSeparator()
+
+        self._backup_action = QAction("Backup Database", self)
+        self._backup_action.setShortcut("Ctrl+Shift+B")
+        self._backup_action.triggered.connect(self._backup_database)
+        file_menu.addAction(self._backup_action)
+
+        act = QAction("Open Backup Folder", self)
+        act.triggered.connect(self._open_backup_folder)
+        file_menu.addAction(act)
+
+        file_menu.addSeparator()
+
+        act = QAction("Print Current View", self)
+        act.setShortcut("Ctrl+P")
+        act.triggered.connect(self._print_current_view)
+        file_menu.addAction(act)
+
+        act = QAction("Refresh", self)
+        act.setShortcut("F5")
+        act.triggered.connect(self._refresh_current)
+        file_menu.addAction(act)
+
+        file_menu.addSeparator()
+
+        act = QAction("Logout", self)
+        act.setShortcut("Ctrl+L")
+        act.triggered.connect(self._logout)
+        file_menu.addAction(act)
+
+        act = QAction("Exit", self)
+        act.setShortcut("Ctrl+Q")
+        act.triggered.connect(self.close)
+        file_menu.addAction(act)
+
         pa_menu = mb.addMenu("&PipeAgent")
         pa_menu.addAction(self._module_actions["dashboard"])
         pa_menu.addSeparator()
@@ -1120,59 +1232,23 @@ class MainWindow(QMainWindow):
             for icon, text, key, sc in items:
                 sub.addAction(self._module_actions[key])
 
-        # ── File menu ─────────────────────────────────────
-        file_menu = mb.addMenu("&File")
-
-        act = QAction("📁  Open Project Folder", self)
-        act.triggered.connect(self._open_project_folder)
-        file_menu.addAction(act)
-
-        act = QAction("📥  Import Excel / Data", self)
-        act.setShortcut("Ctrl+Alt+I")
-        act.triggered.connect(self._open_data_exchange)
-        file_menu.addAction(act)
-
-        act = QAction("📤  Export Full Project Pack", self)
-        act.setShortcut("Ctrl+Alt+E")
-        act.triggered.connect(self._export_project_pack)
-        file_menu.addAction(act)
-
-        file_menu.addSeparator()
-
-        # 🔧 Changed: Ctrl+Alt+B → Ctrl+Shift+B (was conflicting with As-Built)
-        act = QAction("💾  Backup Database", self)
-        act.setShortcut("Ctrl+Shift+B")
-        act.triggered.connect(self._backup_database)
-        file_menu.addAction(act)
-
-        act = QAction("📂  Open Backup Folder", self)
-        act.triggered.connect(self._open_backup_folder)
-        file_menu.addAction(act)
-
-        file_menu.addSeparator()
-
-        act = QAction("🖨  Print Current View", self)
-        act.setShortcut("Ctrl+P")
-        act.triggered.connect(self._print_current_view)
-        file_menu.addAction(act)
-
-        # 🔧 F5 registered ONCE (here in the menu)
-        act = QAction("🔄  Refresh", self)
-        act.setShortcut("F5")
-        act.triggered.connect(self._refresh_current)
-        file_menu.addAction(act)
-
-        file_menu.addSeparator()
-
-        act = QAction("🚪  Logout", self)
-        act.setShortcut("Ctrl+L")
-        act.triggered.connect(self._logout)
-        file_menu.addAction(act)
-
-        act = QAction("❌  Exit", self)
-        act.setShortcut("Ctrl+Q")
-        act.triggered.connect(self.close)
-        file_menu.addAction(act)
+        users_menu = mb.addMenu("&Users")
+        role = role_label(self.session_manager.user_role)
+        user_name = self.session_manager.username or "Guest"
+        session_act = QAction(f"Signed in as {user_name}", self)
+        session_act.setEnabled(False)
+        users_menu.addAction(session_act)
+        role_act = QAction(f"Access level: {role}", self)
+        role_act.setEnabled(False)
+        users_menu.addAction(role_act)
+        users_menu.addSeparator()
+        self._user_admin_action = QAction("Users and Access Levels…", self)
+        self._user_admin_action.setShortcut("Ctrl+Shift+U")
+        self._user_admin_action.triggered.connect(self._open_user_admin)
+        users_menu.addAction(self._user_admin_action)
+        matrix_act = QAction("Show Access Matrix…", self)
+        matrix_act.triggered.connect(self._show_access_matrix)
+        users_menu.addAction(matrix_act)
 
         # ── View menu ─────────────────────────────────────
         view_menu = mb.addMenu("&View")
@@ -1219,6 +1295,14 @@ class MainWindow(QMainWindow):
     # ═══════════════════════════════════════════════════════
 
     def switch_tab(self, key: str):
+        if not can_access_module(self.session_manager.user_role, key):
+            QMessageBox.warning(
+                self,
+                "Access restricted",
+                f"Your access level ({role_label(self.session_manager.user_role)}) "
+                f"cannot open this module.",
+            )
+            return
         if key not in self.tabs:
             if self._tabs_loading:
                 self.statusBar().showMessage(
@@ -1249,7 +1333,41 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"PipeAgent › {text} — ready", 3000)
 
     def show_dashboard(self):
-        self.switch_tab("dashboard")
+        self.switch_tab(first_allowed_module(self.session_manager.user_role, "dashboard"))
+
+    def _apply_module_access(self):
+        allowed = set(accessible_modules(self.session_manager.user_role))
+        for key, action in self._module_actions.items():
+            action.setEnabled(key in allowed)
+            action.setVisible(key in allowed)
+        self._sidebar.apply_access(allowed)
+        manage = can_manage_users(self.session_manager.user_role)
+        if hasattr(self, "_user_admin_action"):
+            self._user_admin_action.setEnabled(manage)
+        if hasattr(self, "_users_btn"):
+            self._users_btn.setVisible(True)
+            self._users_btn.setEnabled(True)
+            if not manage:
+                self._users_btn.setToolTip("View your access level")
+        if hasattr(self, "_backup_action"):
+            self._backup_action.setEnabled(
+                can_backup_database(self.session_manager.user_role)
+            )
+
+    def _open_user_admin(self):
+        if not can_manage_users(self.session_manager.user_role):
+            self._show_access_matrix()
+            return
+        from ui.dialogs.user_admin_dialog import UserAdminDialog
+        dialog = UserAdminDialog(db=self.db, parent=self)
+        dialog.exec()
+
+    def _show_access_matrix(self):
+        QMessageBox.information(
+            self,
+            "Users and access levels",
+            access_matrix_text(),
+        )
 
     def _refresh_current(self):
         widget = self.tabs.get(self._current_key)
@@ -1296,6 +1414,12 @@ class MainWindow(QMainWindow):
             exchange.export_pack()
 
     def _backup_database(self):
+        if not can_backup_database(self.session_manager.user_role):
+            QMessageBox.warning(
+                self, "Access restricted",
+                "Database backup is limited to administrators, project managers and engineers.",
+            )
+            return
         try:
             target = BackupService.backup_database(DATABASE_PATH, BACKUP_DIR)
             QMessageBox.information(

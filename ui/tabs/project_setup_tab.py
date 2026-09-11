@@ -31,7 +31,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QColor, QFont, QBrush, QCursor, QAction
 
 from db.manager import DatabaseManager
-from db.models import Project, Area, LineListItem, Weld, Spool
+from db.models import Project, Area, LineListItem, Weld, Spool, Company
 from security.session import SessionManager
 
 # Implementation note.
@@ -242,6 +242,16 @@ class ProjectDialog(QDialog):
         self.location_edit = QLineEdit()
         self.location_edit.setPlaceholderText("Site / Plant Location (e.g. Refinery Complex Sector B)")
 
+        self.company_name = QLineEdit()
+        self.company_name.setPlaceholderText("Executing company name")
+        self.logo_path = QLineEdit()
+        self.logo_path.setPlaceholderText("Company logo file path")
+        logo_row = QHBoxLayout()
+        logo_btn = QPushButton("Browse…")
+        logo_btn.clicked.connect(self._pick_logo)
+        logo_row.addWidget(self.logo_path, 1)
+        logo_row.addWidget(logo_btn)
+
         self.description_edit = QTextEdit()
         self.description_edit.setPlaceholderText("Project scope summary, engineering battery limits, notes...")
         self.description_edit.setMaximumHeight(75)
@@ -252,6 +262,8 @@ class ProjectDialog(QDialog):
         form.addRow("EPC Contractor:", self.contractor_edit)
         form.addRow("Governing Piping Code *:", self.standard_combo)
         form.addRow("Site Location:", self.location_edit)
+        form.addRow("Company Name:", self.company_name)
+        form.addRow("Company Logo:", logo_row)
         form.addRow("Scope / Description:", self.description_edit)
         layout.addLayout(form)
 
@@ -271,6 +283,8 @@ class ProjectDialog(QDialog):
 
             self.location_edit.setText(project_data.get("location", ""))
             self.description_edit.setPlainText(project_data.get("description", ""))
+            self.company_name.setText(project_data.get("company_name", "") or project_data.get("client", ""))
+            self.logo_path.setText(project_data.get("logo_path", ""))
 
         btns = QHBoxLayout()
         btn_save = QPushButton("Save Project")
@@ -304,7 +318,17 @@ class ProjectDialog(QDialog):
             "standard": self.standard_combo.currentText().strip(),
             "location": self.location_edit.text().strip(),
             "description": self.description_edit.toPlainText().strip(),
+            "company_name": self.company_name.text().strip(),
+            "logo_path": self.logo_path.text().strip(),
         }
+
+    def _pick_logo(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Select company logo", "",
+            "Images (*.png *.jpg *.jpeg *.bmp *.svg);;All Files (*)",
+        )
+        if path:
+            self.logo_path.setText(path)
 
 
 # ─────────────────────────────────────────────
@@ -638,7 +662,16 @@ class ProjectSetupTab(QWidget):
                         "location": getattr(p, "location", "") or "",
                         "description": getattr(p, "description", "") or "",
                         "created_at": getattr(p, "created_at", datetime.datetime.now()),
+                        "company_name": "",
+                        "logo_path": "",
                     })
+                companies = session.query(Company).all()
+                by_project = {c.project_id: c for c in companies if c.project_id}
+                for rec in self._cached_projects:
+                    company = by_project.get(rec["id"])
+                    if company:
+                        rec["company_name"] = company.name or ""
+                        rec["logo_path"] = company.logo_path or ""
 
                 self.kpi_total_projects.set_value(str(len(projects)))
                 self.kpi_total_areas.set_value(str(total_areas))
@@ -774,6 +807,31 @@ class ProjectSetupTab(QWidget):
     # Implementation note.
     # ══════════════════════════════════════════
 
+    def _upsert_company(self, session, project: Project, data: dict) -> None:
+        name = (data.get("company_name") or data.get("client") or "").strip()
+        logo = (data.get("logo_path") or "").strip()
+        if not name and not logo:
+            return
+        company = (
+            session.query(Company)
+            .filter(Company.project_id == project.id)
+            .first()
+        )
+        if company is None:
+            company = Company(
+                project_id=project.id,
+                name=name or project.title,
+                project_name=project.title,
+                logo_path=logo or None,
+            )
+            session.add(company)
+            return
+        if name:
+            company.name = name
+        company.project_name = project.title
+        if logo:
+            company.logo_path = logo
+
     def _on_new_project(self):
         dlg = ProjectDialog(self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
@@ -791,6 +849,8 @@ class ProjectSetupTab(QWidget):
                     created_at=datetime.datetime.utcnow(),
                 )
                 session.add(p)
+                session.flush()
+                self._upsert_company(session, p, data)
 
             self.refresh_projects()
             QMessageBox.information(self, "Success", f"Project '{data['project_code']}' registered successfully.")
@@ -822,6 +882,7 @@ class ProjectSetupTab(QWidget):
                     p.client = new_data["client"]
                     p.contractor = new_data["contractor"]
                     p.standard = new_data["standard"]
+                    self._upsert_company(session, p, new_data)
 
             self.refresh_projects()
             QMessageBox.information(self, "Updated", f"Project '{proj_data['project_code']}' updated.")

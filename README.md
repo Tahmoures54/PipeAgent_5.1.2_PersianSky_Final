@@ -1,4 +1,4 @@
-# PipeAgent 5.2.6 — Piping Execution Operating System
+# PipeAgent 5.2.7 — Piping Execution Operating System
 
 > **Know What’s Next. Control What Matters.**
 >
@@ -86,4 +86,4 @@ The architecture stays above the OT control boundary. PLC/DCS/SCADA remain the c
 
 PipeAgent is a decision-support system. It does not replace engineering authority, QC acceptance, approved schedules or contractual controls.
 
-Column naming follows EPC weld-map / line-list practice; see `docs/DATA_MODEL_CONVENTION.md`. Competitive NDE/hydro/continuity engine: `docs/COMPETITIVE_POSITIONING.md`. Release notes: `RELEASE_NOTES_5.2.4.md`, `RELEASE_NOTES_5.2.5.md`, `RELEASE_NOTES_5.2.6.md`.
+Column naming follows EPC weld-map / line-list practice; see `docs/DATA_MODEL_CONVENTION.md`. Site register mapping from execution databases: `docs/SITE_REGISTERS.md`. Competitive NDE/hydro/continuity engine: `docs/COMPETITIVE_POSITIONING.md`. Release notes: `RELEASE_NOTES_5.2.4.md`, `RELEASE_NOTES_5.2.5.md`, `RELEASE_NOTES_5.2.6.md`, `RELEASE_NOTES_5.2.7.md`.

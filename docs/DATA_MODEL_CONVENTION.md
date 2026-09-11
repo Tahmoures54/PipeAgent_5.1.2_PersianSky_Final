@@ -21,7 +21,9 @@ Do not name a string business key `weld_id`. That name is reserved for the integ
 - **Welder (ASME IX QW-322/350, ISO 9606):** stencil number, F-Number, diameter range, progression, backing, last welded date, certificate number.
 - **WPS/PQR (ASME IX):** WPS/PQR numbers, P/F/A numbers, qualified thickness, position, gas backing.
 - **NDT:** procedure number, acceptance standard, technique, extent %, indication, film density (RT).
-- **Test package / hydro:** design and test pressure in barg, isolation boundary, P&ID limits.
+- **Test package / hydro:** design and test pressure in barg, isolation boundary, P&ID limits, plus the site finishing sequence (line check, cleaning, pressure test, flushing, face cleaning, reinstatement).
+- **Joint register:** isometric sheet/revision, AG/UG, pipe class, shop/field, mating components, hold/expired, test package and spool numbers.
+- **DCC / MTO / supports / TQ:** receive–send transmittals, MIV, fab vs erection support reports, technical queries. See `docs/SITE_REGISTERS.md`.
 
 ## Compatibility
 

@@ -11,14 +11,14 @@ from datetime import timezone
 from pathlib import Path
 from typing import Optional
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QDate
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel,
     QPushButton, QTableWidget, QTableWidgetItem, QHeaderView,
     QMessageBox, QDialog, QFormLayout, QLineEdit, QComboBox,
     QDialogButtonBox, QDoubleSpinBox, QTabWidget, QCheckBox,
     QFrame, QFileDialog, QApplication, QMenu, QAbstractItemView,
-    QGroupBox, QSpinBox,
+    QGroupBox, QSpinBox, QDateEdit, QScrollArea,
 )
 from PyQt6.QtGui import QColor, QFont, QBrush, QCursor, QAction
 
@@ -26,9 +26,17 @@ from db.manager import DatabaseManager
 from db.models import (
     Project, MaterialItem, MaterialTakeOff, ProjectAction,
 )
+from services.record_fields import apply_fields
 from security.session import SessionManager
 from services.material_tracking import MaterialTrackingService
 from services.license import increment_usage
+
+MTO_REGISTER_FIELDS = (
+    "item_number", "thickness_mm", "length_mm", "two_year_qty",
+    "purchase_qty", "phase", "commodity_code", "subject",
+    "source_document_number", "revision", "page_number",
+    "miv_number", "miv_date", "miv_qty",
+)
 
 # ── Material types (fallback if config missing) ────────────────
 try:
@@ -355,11 +363,15 @@ class MTODialog(QDialog):
             "Edit MTO Requirement Line" if self.is_edit
             else "Add Material Take-Off (MTO) Line"
         )
-        self.setMinimumWidth(480)
+        self.setMinimumWidth(520)
+        self.setMinimumHeight(560)
         self.setStyleSheet(PROCUREMENT_STYLESHEET)
 
         layout = QVBoxLayout(self)
-        form = QFormLayout()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        inner = QWidget()
+        form = QFormLayout(inner)
         form.setSpacing(8)
 
         self.project_combo = QComboBox()
@@ -409,16 +421,57 @@ class MTODialog(QDialog):
             "EA (Pieces)", "M (Meters)", "FT (Feet)", "SET", "LOT",
         ])
 
+        self.item_number = QLineEdit()
+        self.thickness = QDoubleSpinBox()
+        self.thickness.setRange(0, 200)
+        self.thickness.setSuffix(" mm")
+        self.length = QDoubleSpinBox()
+        self.length.setRange(0, 1e7)
+        self.length.setSuffix(" mm")
+        self.two_year = QDoubleSpinBox()
+        self.two_year.setRange(0, 1e9)
+        self.purchase = QDoubleSpinBox()
+        self.purchase.setRange(0, 1e9)
+        self.phase = QLineEdit()
+        self.commodity = QLineEdit()
+        self.subject = QLineEdit()
+        self.doc_no = QLineEdit()
+        self.rev = QLineEdit()
+        self.page = QLineEdit()
+        self.miv_no = QLineEdit()
+        self.miv_date = QDateEdit()
+        self.miv_date.setCalendarPopup(True)
+        self.miv_date.setDisplayFormat("yyyy-MM-dd")
+        self.miv_date.setSpecialValueText("—")
+        self.miv_date.setDate(QDate(2000, 1, 1))
+        self.miv_qty = QDoubleSpinBox()
+        self.miv_qty.setRange(0, 1e9)
+
         form.addRow("Project *:", self.project_combo)
         form.addRow("Piping Line No *:", self.line)
         form.addRow("Spool Identifier:", self.spool)
         form.addRow("Commodity Type *:", self.mtype)
+        form.addRow("Item Number:", self.item_number)
         form.addRow("Item Description *:", self.desc)
         form.addRow("Required Spec / Grade:", self.grade)
         form.addRow("Size / Dimension:", self.size)
+        form.addRow("Thickness (mm):", self.thickness)
+        form.addRow("Length (mm):", self.length)
         form.addRow("Required Quantity *:", self.qty)
+        form.addRow("2-Year Qty:", self.two_year)
+        form.addRow("Purchase Qty:", self.purchase)
         form.addRow("Unit of Measurement:", self.unit)
-        layout.addLayout(form)
+        form.addRow("Phase:", self.phase)
+        form.addRow("Commodity Code:", self.commodity)
+        form.addRow("Subject:", self.subject)
+        form.addRow("Source Document:", self.doc_no)
+        form.addRow("Revision:", self.rev)
+        form.addRow("Page:", self.page)
+        form.addRow("MIV Number:", self.miv_no)
+        form.addRow("MIV Date:", self.miv_date)
+        form.addRow("MIV Qty:", self.miv_qty)
+        scroll.setWidget(inner)
+        layout.addWidget(scroll)
 
         if self.is_edit and existing_data:
             pid = existing_data.get("project_id")
@@ -440,6 +493,24 @@ class MTODialog(QDialog):
             self.unit.setCurrentText(
                 existing_data.get("unit", "EA (Pieces)")
             )
+            self.item_number.setText(existing_data.get("item_number", ""))
+            self.thickness.setValue(float(existing_data.get("thickness_mm") or 0))
+            self.length.setValue(float(existing_data.get("length_mm") or 0))
+            self.two_year.setValue(float(existing_data.get("two_year_qty") or 0))
+            self.purchase.setValue(float(existing_data.get("purchase_qty") or 0))
+            self.phase.setText(existing_data.get("phase", ""))
+            self.commodity.setText(existing_data.get("commodity_code", ""))
+            self.subject.setText(existing_data.get("subject", ""))
+            self.doc_no.setText(existing_data.get("source_document_number", ""))
+            self.rev.setText(existing_data.get("revision", ""))
+            self.page.setText(existing_data.get("page_number", ""))
+            self.miv_no.setText(existing_data.get("miv_number", ""))
+            self.miv_qty.setValue(float(existing_data.get("miv_qty") or 0))
+            raw = existing_data.get("miv_date")
+            if raw:
+                parsed = QDate.fromString(str(raw)[:10], "yyyy-MM-dd")
+                if parsed.isValid():
+                    self.miv_date.setDate(parsed)
 
         btns = QHBoxLayout()
         btn_save = QPushButton("Save MTO Item")
@@ -480,6 +551,20 @@ class MTODialog(QDialog):
             "size": self.size.text().strip(),
             "quantity_required": self.qty.value(),
             "unit": self.unit.currentText().split()[0].strip(),
+            "item_number": self.item_number.text().strip(),
+            "thickness_mm": self.thickness.value() or None,
+            "length_mm": self.length.value() or None,
+            "two_year_qty": self.two_year.value() or None,
+            "purchase_qty": self.purchase.value() or None,
+            "phase": self.phase.text().strip(),
+            "commodity_code": self.commodity.text().strip(),
+            "subject": self.subject.text().strip(),
+            "source_document_number": self.doc_no.text().strip(),
+            "revision": self.rev.text().strip(),
+            "page_number": self.page.text().strip(),
+            "miv_number": self.miv_no.text().strip(),
+            "miv_date": None if self.miv_date.date() == QDate(2000, 1, 1) else self.miv_date.date().toPyDate(),
+            "miv_qty": self.miv_qty.value() or None,
         }
 
 
@@ -821,12 +906,12 @@ class ProcurementTab(QWidget):
         tb.addWidget(btn_del_mto)
         l.addLayout(tb)
 
-        self.mto_table = QTableWidget(0, 11)
+        self.mto_table = QTableWidget(0, 14)
         self.mto_table.setHorizontalHeaderLabels([
-            "ID", "Piping Line No", "Target Spool", "Commodity Type",
+            "ID", "Piping Line No", "Target Spool", "Item", "Commodity Type",
             "Item Description", "Spec / Grade", "Size",
-            "Qty Required", "Qty Issued", "Shortage Balance",
-            "Allocation Status",
+            "Qty Required", "Purchase Qty", "MIV No", "MIV Qty",
+            "Qty Issued", "Allocation Status",
         ])
         self.mto_table.setColumnHidden(0, True)
         self._setup_table_style(self.mto_table)
@@ -986,6 +1071,20 @@ class ProcurementTab(QWidget):
                         "balance": bal,
                         "unit": it.unit or "EA",
                         "status": status_calc,
+                        "item_number": getattr(it, "item_number", "") or "",
+                        "thickness_mm": getattr(it, "thickness_mm", None),
+                        "length_mm": getattr(it, "length_mm", None),
+                        "two_year_qty": getattr(it, "two_year_qty", None),
+                        "purchase_qty": getattr(it, "purchase_qty", None),
+                        "phase": getattr(it, "phase", "") or "",
+                        "commodity_code": getattr(it, "commodity_code", "") or "",
+                        "subject": getattr(it, "subject", "") or "",
+                        "source_document_number": getattr(it, "source_document_number", "") or "",
+                        "revision": getattr(it, "revision", "") or "",
+                        "page_number": getattr(it, "page_number", "") or "",
+                        "miv_number": getattr(it, "miv_number", "") or "",
+                        "miv_date": getattr(it, "miv_date", None),
+                        "miv_qty": getattr(it, "miv_qty", None),
                     })
 
                 issued_pct = (
@@ -1133,35 +1232,43 @@ class ProcurementTab(QWidget):
                 r, 2, QTableWidgetItem(it["spool_number"])
             )
             self.mto_table.setItem(
-                r, 3, QTableWidgetItem(it["material_type"])
+                r, 3, QTableWidgetItem(it.get("item_number") or "")
             )
             self.mto_table.setItem(
-                r, 4, QTableWidgetItem(it["description"])
+                r, 4, QTableWidgetItem(it["material_type"])
             )
             self.mto_table.setItem(
-                r, 5, QTableWidgetItem(it["spec_grade"])
+                r, 5, QTableWidgetItem(it["description"])
             )
             self.mto_table.setItem(
-                r, 6, QTableWidgetItem(it["size"])
+                r, 6, QTableWidgetItem(it["spec_grade"])
             )
             self.mto_table.setItem(
-                r, 7, QTableWidgetItem(
+                r, 7, QTableWidgetItem(it["size"])
+            )
+            self.mto_table.setItem(
+                r, 8, QTableWidgetItem(
                     f"{it['quantity_required']:.3f} {it['unit']}"
                 )
             )
             self.mto_table.setItem(
-                r, 8, QTableWidgetItem(
+                r, 9, QTableWidgetItem(
+                    "" if it.get("purchase_qty") is None else str(it.get("purchase_qty"))
+                )
+            )
+            self.mto_table.setItem(
+                r, 10, QTableWidgetItem(it.get("miv_number") or "")
+            )
+            self.mto_table.setItem(
+                r, 11, QTableWidgetItem(
+                    "" if it.get("miv_qty") is None else str(it.get("miv_qty"))
+                )
+            )
+            self.mto_table.setItem(
+                r, 12, QTableWidgetItem(
                     f"{it['quantity_issued']:.3f} {it['unit']}"
                 )
             )
-
-            bal_item = QTableWidgetItem(f"{it['balance']:.3f}")
-            if it["balance"] > 0:
-                bal_item.setForeground(QBrush(QColor("#991b1b")))
-                f_b = bal_item.font()
-                f_b.setBold(True)
-                bal_item.setFont(f_b)
-            self.mto_table.setItem(r, 9, bal_item)
 
             status_item = QTableWidgetItem(it["status"])
             badge = MTO_STATUS_BADGES.get(
@@ -1173,7 +1280,7 @@ class ProcurementTab(QWidget):
             f = status_item.font()
             f.setBold(True)
             status_item.setFont(f)
-            self.mto_table.setItem(r, 10, status_item)
+            self.mto_table.setItem(r, 13, status_item)
 
         self.mto_table.setSortingEnabled(True)
 
@@ -1359,10 +1466,11 @@ class ProcurementTab(QWidget):
                     quantity_required=d["quantity_required"],
                     unit=d["unit"],
                     status="Open",
-                    # ✅ FIXED: use _utcnow() helper
                     created_at=_utcnow(),
                 )
                 s.add(mto)
+                s.flush()
+                apply_fields(mto, d, MTO_REGISTER_FIELDS)
             self._refresh_mto()
             QMessageBox.information(
                 self, "Success",
@@ -1406,6 +1514,7 @@ class ProcurementTab(QWidget):
                     m.size = d["size"]
                     m.quantity_required = d["quantity_required"]
                     m.unit = d["unit"]
+                    apply_fields(m, d, MTO_REGISTER_FIELDS)
             self._refresh_mto()
             QMessageBox.information(
                 self, "Updated", "MTO Line item updated."

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-db/models.py – PipeAgent v5.2.5
+db/models.py – PipeAgent v5.2.7
 ==============================
 Complete SQLAlchemy ORM model registry for the PipeAgent platform.
 
@@ -102,7 +102,7 @@ class User(Base, TimestampMixin, ReprMixin):
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(50), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
-    role = Column(String(20), nullable=False, default="viewer")
+    role = Column(String(40), nullable=False, default="viewer")
     is_active = Column(Boolean, default=True, index=True)
     department = Column(String(100), default="")
     employee_id = Column(String(50), unique=True, index=True)
@@ -177,6 +177,8 @@ class Project(Base, TimestampMixin, ReprMixin, SoftDeleteMixin):
     itp_items = relationship("ITPItem", back_populates="project", cascade="all, delete-orphan")
     valve_records = relationship("ValveRecord", back_populates="project", cascade="all, delete-orphan")
     memberships = relationship("ProjectMembership", back_populates="project", cascade="all, delete-orphan")
+    companies = relationship("Company", back_populates="project", cascade="all, delete-orphan")
+    technical_queries = relationship("TechnicalQuery", back_populates="project", cascade="all, delete-orphan")
 
 
 class Area(Base, ReprMixin):
@@ -195,6 +197,22 @@ class Area(Base, ReprMixin):
     __table_args__ = (
         UniqueConstraint("project_id", "name", name="uq_area_name_per_project"),
     )
+
+
+class Company(Base, TimestampMixin, ReprMixin):
+    """Executing / owner company identity (Access ``Company`` register)."""
+
+    __tablename__ = "companies"
+    _repr_fields = ("id", "name")
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, unique=True, index=True)
+    name = Column(String(200), nullable=False)
+    project_name = Column(String(200))
+    logo_path = Column(String(500))
+    company_name = synonym("name")
+
+    project = relationship("Project", back_populates="companies")
 
 
 # ══════════════════════════════════════════════
@@ -335,6 +353,22 @@ class MaterialTakeOff(Base, CreatedOnlyMixin, ReprMixin):
     unit = Column(String(20), default="EA")
     status = Column(String(30), default="Open", index=True)
     remarks = Column(Text)
+    subject = Column(String(200))
+    source_document_number = Column(String(100), index=True)
+    revision = Column(String(20))
+    page_number = Column(String(30))
+    item_number = Column(String(50), index=True)
+    thickness_mm = Column(Float)
+    length_mm = Column(Float)
+    two_year_qty = Column(Float)
+    purchase_qty = Column(Float)
+    phase = Column(String(50), index=True)
+    commodity_code = Column(String(50), index=True)
+    miv_number = Column(String(100), index=True)
+    miv_date = Column(Date)
+    miv_qty = Column(Float)
+    doc_number = synonym("source_document_number")
+    comm_code = synonym("commodity_code")
 
     project = relationship("Project", back_populates="material_takeoffs")
 
@@ -537,12 +571,38 @@ class Weld(Base, TimestampMixin, ReprMixin, SoftDeleteMixin):
     remarks = Column(Text)
     created_by = Column(String(100))
     updated_by = Column(String(100))
+    sheet_number = Column(String(50))
+    sheet_revision = Column(String(20))
+    revision_status = Column(String(40))
+    install_location = Column(String(20), index=True)
+    region = Column(String(80))
+    pipe_class = Column(String(50), index=True)
+    line_service = Column(String(80))
+    joint_index = Column(String(50))
+    ndt_percent_rt = Column(Float)
+    ndt_percent_pt = Column(Float)
+    pwht_required = Column(Boolean, default=False)
+    test_package_number = Column(String(100), index=True)
+    spool_number = Column(String(100), index=True)
+    contractor = Column(String(150))
+    insulation = Column(String(80))
+    left_component = Column(String(150))
+    left_qty = Column(Float)
+    right_component = Column(String(150))
+    right_qty = Column(Float)
+    hold = Column(Boolean, default=False, index=True)
+    is_expired = Column(Boolean, default=False, index=True)
+    area_name = Column(String(100))
     joint_number = synonym("weld_number")
     drawing_number = synonym("iso_number")
     dia_inch = synonym("size_nps")
     welding_date = synonym("weld_end_datetime")
     root_welder_id = synonym("welder_id")
     cap_welder_id = synonym("welder_id")
+    shop_field = synonym("weld_type")
+    ag_ug = synonym("install_location")
+    base_metal = synonym("material")
+    joint_remark = synonym("remarks")
 
     project = relationship("Project", back_populates="welds")
     spool = relationship("Spool", back_populates="shop_welds")
@@ -620,6 +680,40 @@ class PipeSupport(Base, CreatedOnlyMixin, ReprMixin):
     installed_date = Column(Date)
     inspector = Column(String(100))
     remarks = Column(Text)
+    revision = Column(String(20))
+    install_location = Column(String(20), index=True)
+    sheet_number = Column(String(50))
+    service = Column(String(80))
+    size_nps = Column(String(50))
+    base_metal = Column(String(100))
+    joint_number = Column(String(100), index=True)
+    weld_status = Column(String(40), index=True)
+    fabrication_weight_kg = Column(Float)
+    erection_weight_kg = Column(Float)
+    type_2 = Column(String(80))
+    fab_fitup_report_number = Column(String(100))
+    fab_fitup_date = Column(Date)
+    fab_fitup_result = Column(String(40))
+    fab_fitup_contractor = Column(String(150))
+    fab_weld_report_number = Column(String(100))
+    fab_weld_date = Column(Date)
+    fab_weld_result = Column(String(40))
+    fab_weld_contractor = Column(String(150))
+    er_fitup_report_number = Column(String(100))
+    er_fitup_date = Column(Date)
+    er_fitup_result = Column(String(40))
+    er_fitup_contractor = Column(String(150))
+    er_weld_report_number = Column(String(100))
+    er_weld_date = Column(Date)
+    er_weld_result = Column(String(40))
+    er_weld_contractor = Column(String(150))
+    welder_name = Column(String(150))
+    pt_report_number = Column(String(100))
+    pt_date = Column(Date)
+    pt_result = Column(String(40))
+    test_package_number = Column(String(100), index=True)
+    ag_ug = synonym("install_location")
+    type_1 = synonym("support_type")
 
     project = relationship("Project", back_populates="pipe_supports")
 
@@ -656,6 +750,36 @@ class TestPackage(Base, CreatedOnlyMixin, ReprMixin):
     tested_by = Column(String(100))
     witnessed_by = Column(String(100))
     remarks = Column(Text)
+    area_name = Column(String(100), index=True)
+    install_location = Column(String(20), index=True)
+    dia_inch_total = Column(Float)
+    inch_meter = Column(Float)
+    linecheck_finished = Column(Boolean, default=False)
+    linecheck_result = Column(String(40))
+    linecheck_result_date = Column(Date)
+    linecheck_subcontractor = Column(String(150))
+    cleaning_finished = Column(Boolean, default=False)
+    cleaning_result = Column(String(40))
+    cleaning_result_date = Column(Date)
+    cleaning_subcontractor = Column(String(150))
+    pressure_test_finished = Column(Boolean, default=False)
+    pressure_test_result = Column(String(40))
+    pressure_test_result_date = Column(Date)
+    pressure_test_subcontractor = Column(String(150))
+    flushing_finished = Column(Boolean, default=False)
+    flushing_result = Column(String(40))
+    flushing_result_date = Column(Date)
+    flushing_subcontractor = Column(String(150))
+    face_cleaning_finished = Column(Boolean, default=False)
+    face_cleaning_result = Column(String(40))
+    face_cleaning_result_date = Column(Date)
+    face_cleaning_subcontractor = Column(String(150))
+    reinstatement_finished = Column(Boolean, default=False)
+    reinstatement_result = Column(String(40))
+    reinstatement_result_date = Column(Date)
+    reinstatement_subcontractor = Column(String(150))
+    ag_ug = synonym("install_location")
+    test_medium_alias = synonym("test_medium")
 
     project = relationship("Project", back_populates="test_packages")
     welds = relationship("Weld", secondary="test_package_welds", back_populates="test_packages")
@@ -903,6 +1027,20 @@ class ProjectAction(Base, ReprMixin):
     action_date = Column(DateTime, default=_utcnow, index=True)
     user_name = Column(String(100))
     status = Column(String(30), default="Open", index=True)
+    document_type = Column(String(80))
+    document_number = Column(String(100), index=True)
+    document_date = Column(Date)
+    subcontractor = Column(String(150))
+    rt_report_number = Column(String(100), index=True)
+    action_by_1 = Column(String(100))
+    action_by_2 = Column(String(100))
+    result = Column(String(80))
+    work_front = Column(String(100), index=True)
+    link_url = Column(String(500))
+    created_by = Column(String(100))
+    updated_by = Column(String(100))
+    remarks = Column(Text)
+    action = synonym("action_type")
 
     project = relationship("Project", back_populates="project_actions")
 
@@ -932,9 +1070,63 @@ class Document(Base, TimestampMixin, ReprMixin):
     originator = Column(String(100))
     issued_date = Column(Date)
     created_by = Column(String(100))
+    description = Column(Text)
+    description_fa = Column(Text)
+    receive_transmittal_number = Column(String(100), index=True)
+    receive_letter_number = Column(String(100))
+    received_from = Column(String(150))
+    received_date = Column(Date)
+    sent_to = Column(String(150))
+    send_transmittal_number = Column(String(100), index=True)
+    sent_date = Column(Date)
+    send_letter_number = Column(String(100))
+    department = Column(String(100))
+    area_name = Column(String(100), index=True)
+    doc_class = Column(String(50), index=True)
+    doc_index = Column(String(50))
+    service = Column(String(80))
+    sheet_number = Column(String(50))
+    size_nps = Column(String(50))
+    markup = Column(String(80))
+    remarks = Column(Text)
+    file_location = synonym("file_path")
+    document_no = synonym("doc_number")
 
     project = relationship("Project", back_populates="documents")
     revisions = relationship("DocumentRevision", back_populates="document", cascade="all, delete-orphan")
+
+
+class TechnicalQuery(Base, TimestampMixin, ReprMixin):
+    """Engineering technical query / RFI (Access ``technical_query``)."""
+
+    __tablename__ = "technical_queries"
+    _repr_fields = ("id", "tq_number", "status")
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    tq_number = Column(String(100), nullable=False, index=True)
+    raised_date = Column(Date)
+    submitted_date = Column(Date)
+    raised_by = Column(String(150))
+    description = Column(Text)
+    related_document = Column(String(200))
+    category = Column(String(80), index=True)
+    priority = Column(String(20), default="Normal", index=True)
+    due_date = Column(Date)
+    response = Column(Text)
+    response_received_date = Column(Date)
+    status = Column(String(30), default="Open", index=True)
+    assigned_to = Column(String(150))
+    approved_by = Column(String(150))
+    notes = Column(Text)
+    tq_no = synonym("tq_number")
+    response_date = synonym("response_received_date")
+
+    project = relationship("Project", back_populates="technical_queries")
+
+    __table_args__ = (
+        UniqueConstraint("project_id", "tq_number", name="uq_tq_number_per_project"),
+    )
 
 
 class DocumentRevision(Base, CreatedOnlyMixin, ReprMixin):
