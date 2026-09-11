@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# config.py – PipeAgent v5.2.4
+# config.py – PipeAgent v5.2.5
 
 from __future__ import annotations
 import os
@@ -30,7 +30,7 @@ _load_dotenv(PROJECT_ROOT / ".env")
 
 ORG_NAME = "PipeAgent"
 APP_NAME = "PipeAgent"
-APP_VERSION = "5.2.4"
+APP_VERSION = "5.2.5"
 SUPPORT_EMAIL = ""
 WHATSAPP_SUPPORT_PHONE = "+989160684552"
 WHATSAPP_SUPPORT_URL = "https://wa.me/989160684552"

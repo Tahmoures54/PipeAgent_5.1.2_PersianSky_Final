@@ -1,4 +1,4 @@
-# PipeAgent 5.2.4 — Piping Execution Operating System
+# PipeAgent 5.2.5 — Piping Execution Operating System
 
 > **Know What’s Next. Control What Matters.**
 >
@@ -86,4 +86,4 @@ The architecture stays above the OT control boundary. PLC/DCS/SCADA remain the c
 
 PipeAgent is a decision-support system. It does not replace engineering authority, QC acceptance, approved schedules or contractual controls.
 
-See `RELEASE_NOTES_5.2.4.md` for the reliability and security changes in this revision.
+Column naming follows EPC weld-map / line-list practice; see `docs/DATA_MODEL_CONVENTION.md`. Release notes: `RELEASE_NOTES_5.2.4.md` (reliability) and `RELEASE_NOTES_5.2.5.md` (schema).
