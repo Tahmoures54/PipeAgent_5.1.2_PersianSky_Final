@@ -492,6 +492,8 @@ def main() -> int:
     app.setApplicationDisplayName(APP_NAME)
     app.setApplicationVersion(APP_VERSION)
     app.setOrganizationName(ORG_NAME)
+    from ui.theme import apply_persian_sky
+    apply_persian_sky(app)
 
     # During startup only dialogs exist; closing one must not quit the app.
     app.setQuitOnLastWindowClosed(False)
