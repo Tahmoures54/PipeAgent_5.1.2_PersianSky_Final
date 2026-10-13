@@ -68,13 +68,13 @@ class DatabaseConnectionDialog(QDialog):
                 "That value is used at startup and overrides this profile."
             )
             lock.setWordWrap(True)
-            lock.setStyleSheet("color:#92400e; background:#fef3c7; padding:8px; border-radius:6px;")
+            lock.setStyleSheet("color:#075D67; background:#D8F5F6; padding:8px; border-radius:6px;")
             layout.addWidget(lock)
 
         if startup_error:
             err = QLabel(startup_error)
             err.setWordWrap(True)
-            err.setStyleSheet("color:#991b1b; background:#fee2e2; padding:8px; border-radius:6px;")
+            err.setStyleSheet("color:#8F2630; background:#FDECEE; padding:8px; border-radius:6px;")
             layout.addWidget(err)
 
         self.engine = QComboBox()
