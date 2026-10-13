@@ -4,7 +4,7 @@
 PipeAgent — Animated Startup Splash Screen (Corrected)
 ═══════════════════════════════════════════════════════════
 Engine : PyQt6
-Design : Cinematic dark-tech theme with real-time animations
+Design : Persian Sky turquoise theme with real-time animations
 
 Architecture change vs. previous version:
   • Frameless translucent QWidget instead of QSplashScreen + grab() loop
@@ -78,27 +78,27 @@ class GlowRing(QWidget):
         radius = self._ring_size // 2 - 4
 
         gradient = QRadialGradient(center.x(), center.y(), radius + 10)
-        gradient.setColorAt(0.0, QColor(108, 207, 246, 0))
-        gradient.setColorAt(0.7, QColor(108, 207, 246, 0))
-        gradient.setColorAt(0.85, QColor(108, 207, 246, 40))
-        gradient.setColorAt(1.0, QColor(108, 207, 246, 0))
+        gradient.setColorAt(0.0, QColor(15, 157, 154, 0))
+        gradient.setColorAt(0.7, QColor(15, 157, 154, 0))
+        gradient.setColorAt(0.85, QColor(15, 157, 154, 40))
+        gradient.setColorAt(1.0, QColor(15, 157, 154, 0))
         painter.setBrush(QBrush(gradient))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawEllipse(center, radius + 10, radius + 10)
 
         rect = QRect(center.x() - radius, center.y() - radius, radius * 2, radius * 2)
 
-        pen = QPen(QColor(104, 215, 255, 200), 3)
+        pen = QPen(QColor(84, 197, 232, 200), 3)
         pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         painter.setPen(pen)
         painter.drawArc(rect, self._angle * 16, 120 * 16)
 
-        pen2 = QPen(QColor(159, 231, 255, 80), 2)
+        pen2 = QPen(QColor(84, 197, 232, 80), 2)
         pen2.setCapStyle(Qt.PenCapStyle.RoundCap)
         painter.setPen(pen2)
         painter.drawArc(rect, (self._angle + 180) * 16, 90 * 16)
 
-        painter.setPen(QPen(QColor(108, 207, 246, 35), 1))
+        painter.setPen(QPen(QColor(15, 157, 154, 35), 1))
         inner_r = radius - 8
         painter.drawEllipse(center, inner_r, inner_r)
         painter.end()
@@ -146,7 +146,7 @@ class ParticleField(QWidget):
         painter.setPen(Qt.PenStyle.NoPen)
         w, h = self.width(), self.height()
         for p in self._particles:
-            painter.setBrush(QBrush(QColor(108, 207, 246, p["alpha"])))
+            painter.setBrush(QBrush(QColor(15, 157, 154, p["alpha"])))
             d = int(p["r"] * 2)
             painter.drawEllipse(int(p["x"] * w), int(p["y"] * h), d, d)
         painter.end()
@@ -189,8 +189,8 @@ class GlowProgressBar(QWidget):
 
         path_bg = QPainterPath()
         path_bg.addRoundedRect(0, 0, w, h, radius, radius)
-        painter.fillPath(path_bg, QColor(7, 17, 27))
-        painter.setPen(QPen(QColor(40, 125, 165, 120), 1))
+        painter.fillPath(path_bg, QColor(234, 244, 246))
+        painter.setPen(QPen(QColor(185, 221, 225, 220), 1))
         painter.drawPath(path_bg)
 
         fill_w = max(0, int((self._value / max(1, self._max)) * w))
@@ -199,9 +199,9 @@ class GlowProgressBar(QWidget):
             path_fill.addRoundedRect(0, 0, fill_w, h, radius, radius)
 
             grad = QLinearGradient(0, 0, fill_w, 0)
-            grad.setColorAt(0.0, QColor(40, 180, 220))
-            grad.setColorAt(0.5, QColor(104, 215, 255))
-            grad.setColorAt(1.0, QColor(159, 231, 255))
+            grad.setColorAt(0.0, QColor(15, 157, 154))
+            grad.setColorAt(0.5, QColor(84, 197, 232))
+            grad.setColorAt(1.0, QColor(84, 197, 232))
             painter.fillPath(path_fill, QBrush(grad))
 
             shine_x = (self._glow_offset / 200.0) * fill_w
@@ -212,13 +212,13 @@ class GlowProgressBar(QWidget):
 
             if fill_w > 4:
                 glow = QRadialGradient(fill_w, h / 2, 20)
-                glow.setColorAt(0.0, QColor(159, 231, 255, 120))
-                glow.setColorAt(1.0, QColor(159, 231, 255, 0))
+                glow.setColorAt(0.0, QColor(84, 197, 232, 120))
+                glow.setColorAt(1.0, QColor(84, 197, 232, 0))
                 painter.setBrush(QBrush(glow))
                 painter.setPen(Qt.PenStyle.NoPen)
                 painter.drawEllipse(QPoint(int(fill_w), h // 2), 15, 15)
 
-        painter.setPen(QColor(255, 255, 255, 200))
+        painter.setPen(QColor(23, 59, 69, 220))
         painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
         painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, f"{self._value}%")
         painter.end()
@@ -284,7 +284,7 @@ class StatusDots(QWidget):
         painter.setPen(Qt.PenStyle.NoPen)
         for i in range(3):
             alpha = 200 if i < self._phase else 50
-            painter.setBrush(QBrush(QColor(104, 215, 255, alpha)))
+            painter.setBrush(QBrush(QColor(84, 197, 232, alpha)))
             painter.drawEllipse(i * 18 + 2, 4, 8, 8)
         painter.end()
 
@@ -343,14 +343,14 @@ class StartupSplash(QWidget):
         "📐  As-Built ISO registry, Weld Map and MCC certificates ensure smooth turnover.",
     ]
 
-    BG_DEEP       = "#063F46"
-    BG_APP        = "#075D67"
-    BG_PANEL      = "#087F8C"
-    BG_TERMINAL   = "#04373D"
-    PRIMARY       = "#55D2D8"
-    PRIMARY_LIGHT = "#E2FFFF"
-    TEXT_MUTED    = "#B7E2E5"
-    TEXT_FOOTER   = "#8CC7CC"
+    BG_DEEP       = "#EAF4F6"
+    BG_APP        = "#F7FCFD"
+    BG_PANEL      = "#FFFFFF"
+    BG_TERMINAL   = "#EAF4F6"
+    PRIMARY       = "#0F9D9A"
+    PRIMARY_LIGHT = "#0F7776"
+    TEXT_MUTED    = "#527780"
+    TEXT_FOOTER   = "#6C8D95"
     TERM_GREEN    = "#6ee8a5"
     SUCCESS       = "#5cffaa"
 
@@ -457,7 +457,7 @@ class StartupSplash(QWidget):
         brand = QLabel("PIPE  AGENT")
         brand.setObjectName("brand")
         brand.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._add_glow_shadow(brand, QColor(108, 207, 246, 100), blur=30)
+        self._add_glow_shadow(brand, QColor(15, 157, 154, 100), blur=30)
         c_layout.addWidget(brand)
 
         engine = QLabel(f"V{APP_VERSION}  •  PIPING EXECUTION OPERATING SYSTEM")
@@ -494,7 +494,7 @@ class StartupSplash(QWidget):
         # Feature panel
         self._feature_frame = QFrame()
         self._feature_frame.setObjectName("featureFrame")
-        self._add_glow_shadow(self._feature_frame, QColor(108, 207, 246, 40), blur=20)
+        self._add_glow_shadow(self._feature_frame, QColor(15, 157, 154, 40), blur=20)
         f_layout = QVBoxLayout(self._feature_frame)
         f_layout.setContentsMargins(18, 12, 18, 14)
         f_layout.setSpacing(6)
@@ -581,7 +581,7 @@ class StartupSplash(QWidget):
                 letter-spacing: 2px; background: transparent;
             }}
             QFrame#termFrame {{
-                background: {self.BG_TERMINAL}; border: 1px solid #0D6972; border-radius: 8px;
+                background: {self.BG_TERMINAL}; border: 1px solid #B9DDE1; border-radius: 8px;
             }}
             QLabel#terminal {{
                 color: {self.TERM_GREEN}; font-family: Consolas, "Courier New", monospace;
@@ -591,7 +591,7 @@ class StartupSplash(QWidget):
                 color: {self.SUCCESS}; font-weight: 600;
             }}
             QFrame#featureFrame {{
-                background: {self.BG_PANEL}; border: 1px solid rgba(85, 210, 216, 0.35);
+                background: {self.BG_PANEL}; border: 1px solid rgba(15, 157, 154, 0.28);
                 border-radius: 10px;
             }}
             QLabel#featureTitle {{
