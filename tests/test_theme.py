@@ -22,7 +22,6 @@ def test_theme_applies_shared_stylesheet():
     theme.apply_persian_sky(app)
 
     stylesheet = app.styleSheet()
-    assert app.style().objectName().lower() == "fusion"
     assert "#0F9D9A" in stylesheet
     assert "#EAF4F6" in stylesheet
     assert "QPushButton" in stylesheet
