@@ -4,7 +4,7 @@ PipeAgent — Ultra-Premium Login Dialog
 ═══════════════════════════════════════════════════════════
 Version : 4.0 (Refactored, hardened, production-ready)
 Engine  : PyQt6
-Design  : Cinematic dark-tech theme matching StartupSplash
+Design  : Persian Sky turquoise theme
 
 Fixes in this revision
 ──────────────────────
@@ -271,19 +271,19 @@ class LoginDialog(QDialog):
     """
 
     # ── Palette ───────────────────────────────────────────────
-    BG_DEEP       = "#060e18"
-    BG_APP        = "#0b1624"
-    BG_PANEL      = "#0f1c2e"
-    BG_INPUT      = "#0a1826"
-    PRIMARY       = "#6ccff6"
-    PRIMARY_LIGHT = "#9fe7ff"
-    ACCENT        = "#68d7ff"
-    TEXT_MAIN     = "#eef6ff"
-    TEXT_MUTED    = "#7a9ab3"
-    TEXT_FOOTER   = "#3f6070"
+    BG_DEEP       = "#EAF4F6"
+    BG_APP        = "#F7FCFD"
+    BG_PANEL      = "#FFFFFF"
+    BG_INPUT      = "#FFFFFF"
+    PRIMARY       = "#0F9D9A"
+    PRIMARY_LIGHT = "#54C5E8"
+    ACCENT        = "#0F9D9A"
+    TEXT_MAIN     = "#173B45"
+    TEXT_MUTED    = "#527780"
+    TEXT_FOOTER   = "#6C8D95"
     ERROR         = "#ff6b6b"
     SUCCESS       = "#5cffaa"
-    INFO          = "#9fe7ff"
+    INFO          = "#54C5E8"
 
     WIDTH  = 460
     HEIGHT = 620
@@ -460,7 +460,7 @@ class LoginDialog(QDialog):
         opt_row.addStretch()
 
         forgot = QLabel(
-            '<a href="#" style="color:#9fe7ff;text-decoration:none;">'
+            '<a href="#" style="color:#54C5E8;text-decoration:none;">'
             'Forgot password?</a>'
         )
         forgot.setObjectName("forgot")
@@ -588,7 +588,7 @@ class LoginDialog(QDialog):
             QLineEdit {{
                 background: {self.BG_INPUT};
                 color: {self.TEXT_MAIN};
-                border: 1px solid #1e3d5a;
+                border: 1px solid #B9DDE1;
                 border-radius: 8px;
                 padding: 0 14px;
                 font-size: 13px;
@@ -596,15 +596,15 @@ class LoginDialog(QDialog):
                 selection-background-color: {self.PRIMARY};
                 selection-color: {self.BG_APP};
             }}
-            QLineEdit:hover {{ border: 1px solid #2c5478; }}
+            QLineEdit:hover {{ border: 1px solid #78C9CE; }}
             QLineEdit:focus {{
                 border: 1px solid {self.PRIMARY};
-                background: #0d1f30;
+                background: #EAF4F6;
             }}
             QPushButton#togglePw {{
                 background: {self.BG_INPUT};
                 color: {self.TEXT_MUTED};
-                border: 1px solid #1e3d5a;
+                border: 1px solid #B9DDE1;
                 border-left: none;
                 border-top-right-radius: 8px;
                 border-bottom-right-radius: 8px;
@@ -612,7 +612,7 @@ class LoginDialog(QDialog):
             }}
             QPushButton#togglePw:hover {{
                 color: {self.PRIMARY_LIGHT};
-                background: #0d1f30;
+                background: #EAF4F6;
             }}
             QPushButton#togglePw:checked {{ color: {self.ACCENT}; }}
             QCheckBox#remember {{
@@ -624,7 +624,7 @@ class LoginDialog(QDialog):
             QCheckBox#remember::indicator {{
                 width: 16px;
                 height: 16px;
-                border: 1px solid #2c5478;
+                border: 1px solid #78C9CE;
                 border-radius: 4px;
                 background: {self.BG_INPUT};
             }}
@@ -653,11 +653,11 @@ class LoginDialog(QDialog):
             QPushButton#loginBtn {{
                 background: qlineargradient(
                     x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #2196d4,
+                    stop:0 #0F9D9A,
                     stop:0.5 {self.ACCENT},
-                    stop:1 #2196d4
+                    stop:1 #0F9D9A
                 );
-                color: #041827;
+                color: #FFFFFF;
                 border: none;
                 border-radius: 10px;
                 font-size: 13px;
@@ -672,7 +672,7 @@ class LoginDialog(QDialog):
                     stop:1 {self.ACCENT}
                 );
             }}
-            QPushButton#loginBtn:pressed {{ background: #2196d4; }}
+            QPushButton#loginBtn:pressed {{ background: #0F9D9A; }}
             QPushButton#loginBtn:disabled {{
                 background: #1a3d54;
                 color: #5a7a8a;
@@ -680,7 +680,7 @@ class LoginDialog(QDialog):
             QPushButton#cancelBtn {{
                 background: transparent;
                 color: {self.TEXT_MUTED};
-                border: 1px solid #1e3d5a;
+                border: 1px solid #B9DDE1;
                 border-radius: 10px;
                 font-size: 12px;
                 font-weight: 600;
